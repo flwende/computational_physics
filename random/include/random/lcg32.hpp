@@ -18,7 +18,9 @@ namespace XXX_NAMESPACE
     //! \brief Implementation of class random using the 32-bit linear congruential generator (lcg)
     //! a la NUMERICAL RECIPES
     //!
-    //! Reference: Saul Teukolsky, William H. Press und William T. Vetterling,
+    //! Reference:
+    //! \n
+    //! * Saul Teukolsky, William H. Press and William T. Vetterling,
     //!            "Numerical Recipes in C: The Art of Scientific Computing, 3rd Edition"
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	class alignas(simd::alignment) lcg32 : public random
