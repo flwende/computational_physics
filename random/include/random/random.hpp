@@ -15,9 +15,9 @@
 
 namespace XXX_NAMESPACE
 {
-    //! \brief Abstract random number generator class
-    //!
-    //! Uniform random integers over [0, 0xFFFFFFFF] and floats over [0.0, 1.0]
+	//! \brief Abstract random number generator class
+	//!
+	//! Uniform random integers over [0, 0xFFFFFFFF] and floats over [0.0, 1.0]
 	class alignas(simd::alignment) random
     {
 

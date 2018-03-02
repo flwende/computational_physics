@@ -23,8 +23,8 @@ namespace XXX_NAMESPACE
 	//!
 	//! \tparam D dimension
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    template <std::size_t D>
-    class spin_system;
+	template <std::size_t D>
+	class spin_system;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//! \brief Class implementing the Swendsen Wang cluster algorithm for the 2-dimensional Ising model
@@ -34,29 +34,29 @@ namespace XXX_NAMESPACE
 	//!            Phys. Rev. Lett., 58:86-88, Jan 1987
 	//!
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    template <>
+	template <>
 	class spin_system<2>
 	{
-        //! Tile size for parallel processing: the innermost dimension should be a multiple of the SIMD width
+		//! Tile size for parallel processing: the innermost dimension should be a multiple of the SIMD width
 		//! of the target platform
-        static constexpr std::size_t chunk[2] = {simd::type<std::uint32_t>::width, 8};
+		static constexpr std::size_t chunk[2] = {simd::type<std::uint32_t>::width, 8};
 
 		//! Lattice extent
-        const std::size_t n[2];
+		const std::size_t n[2];
 		//! Lattice: we just need to store 0 or 1 (spin down or up orientation)
-        std::vector<std::uint8_t> lattice;
+		std::vector<std::uint8_t> lattice;
 		//! Cluster: the largest possible label is 0xFFFFFFFF
-        std::vector<std::uint32_t> cluster;
+		std::vector<std::uint32_t> cluster;
 		//! Random number generator: if you use the lcg32 generator, make sure you are
 		//! compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers are too bad)
-        std::vector<random*> rng;
+		std::vector<random*> rng;
 
 		//! Energy per site
-        double energy;
+		double energy;
 		//! Magnetization per site
-        double magnetization;
+		double magnetization;
 		//! Do we have to call measure()?
-        bool call_measurement_routine;
+		bool call_measurement_routine;
 
 	public:
 
@@ -73,11 +73,11 @@ namespace XXX_NAMESPACE
 		//! Each update comprises calling the following methods
 		//! \n\n
 		//! 1. assign_labels (using e.g. ccl_selflabeling)
-        //! \n
+		//! \n
 		//! 2. merge_labels
-        //! \n
+		//! \n
 		//! 3. resolve_labels
-        //! \n
+		//! \n
 		//! 4. flip_spins
 		//! \n\n
 		//! Steps 1-3: find all clusters (connected components)
@@ -95,7 +95,7 @@ namespace XXX_NAMESPACE
 		//! \brief Determine the magnetization of the system
 		//!
 		//! \return magnetization per site
-        double get_magnetization();
+		double get_magnetization();
 		
 	private:
 
@@ -123,7 +123,7 @@ namespace XXX_NAMESPACE
 		//! \param ptr pointer to the field holding all cluster labels (and equivalences)
 		//! \param a cluster label
 		//! \param b cluster label (there is an equivalenc of a and b that needs to be established)
-        void merge(std::uint32_t* ptr, std::uint32_t a, std::uint32_t b);
+		void merge(std::uint32_t* ptr, std::uint32_t a, std::uint32_t b);
 
 		//! \brief Replace the data pointed to by ptr by desired if and only if desired is smaller
 		//!
@@ -136,10 +136,10 @@ namespace XXX_NAMESPACE
 		void resolve_labels();
 
 		//! \brief Flip clusters
-        void flip_spins();
+		void flip_spins();
 
 		//! \brief Determine the internal energy and magnetization, both per site
-        void measure();
+		void measure();
 	};
 }
 
