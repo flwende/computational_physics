@@ -151,7 +151,7 @@ namespace XXX_NAMESPACE
 		}
 	}
 
-    //! \brief Connect all tiles
+	//! \brief Connect all tiles
 	//!
 	//! \param p_add probability for adding aligned nearest neighbor sites to the cluster
 	void spin_system<2>::merge_labels(const float p_add)
@@ -189,7 +189,7 @@ namespace XXX_NAMESPACE
 						}
 					}
 
-                    // merge in 0-direction
+					// merge in 0-direction
 					for (std::size_t jj = 0; jj < jj_max; ++jj)
 					{
 						const std::size_t idx_0 = (j + jj) * n[0] + (i + ii_max - 1);
@@ -373,7 +373,7 @@ namespace XXX_NAMESPACE
 				}
 		}
 
-        const std::int64_t volume = n[0] * n[1];
+		const std::int64_t volume = n[0] * n[1];
 		// negative internal energy: this comprises all lattice sites
 		energy = static_cast<double>(2 * i_energy - 2 * volume) / volume;
 		// magnetization

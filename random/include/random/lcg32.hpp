@@ -104,7 +104,7 @@ namespace XXX_NAMESPACE
 
 			// the n-th lcg is initialized using the state of the (n - 1)-th lcg
 			for (std::size_t i = 1; i < simd_width; ++i)
-            {
+			{
 				state[i] = a[i] * state[i - 1] + c[i];
 			}
 		}
@@ -115,7 +115,7 @@ namespace XXX_NAMESPACE
 		std::uint32_t next_uint32()
 		{
 			if ((++current_element) == buffer_size)
-            {
+			{
 				// buffer is empty: refill it
 				update();
 				current_element = 0;
@@ -124,7 +124,7 @@ namespace XXX_NAMESPACE
 			return buffer[current_element];
 		}
 
-        //! \brief Get the next random float
+		//! \brief Get the next random float
 		//!
 		//! \return random float over [0.0, 1.0]
 		float next_float()
@@ -143,7 +143,7 @@ namespace XXX_NAMESPACE
 			for (std::size_t i = 0; i < i_max; i += buffer_size)
 			{
 				update(&ptr[i]);
-            }
+			}
 
 			// take the rest from the internal buffer
 			for (std::size_t i = i_max; i < n; ++i)

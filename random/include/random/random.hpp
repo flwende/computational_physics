@@ -19,7 +19,7 @@ namespace XXX_NAMESPACE
 	//!
 	//! Uniform random integers over [0, 0xFFFFFFFF] and floats over [0.0, 1.0]
 	class alignas(simd::alignment) random
-    {
+	{
 
 	public:
 
@@ -31,9 +31,9 @@ namespace XXX_NAMESPACE
 
 		virtual float next_float() = 0;
 
-        virtual void next_uint32(std::uint32_t* ptr, const std::size_t n) = 0;
+		virtual void next_uint32(std::uint32_t* ptr, const std::size_t n) = 0;
 
-        virtual void next_float(float* ptr, const std::size_t n) = 0;
+		virtual void next_float(float* ptr, const std::size_t n) = 0;
 	};	
 }
 
