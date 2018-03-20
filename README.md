@@ -1,5 +1,5 @@
 # Computational Physics
-This repository contains a collection of CP projects
+This repository contains a collection of CP projects.
 
 
 # Random
