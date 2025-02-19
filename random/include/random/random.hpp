@@ -18,7 +18,7 @@ namespace XXX_NAMESPACE
         public:
             virtual ~RandomNumberGenerator() = default;
 
-            virtual void Init(std::uint32_t seed) = 0;
+            virtual void Init(const std::uint32_t seed) = 0;
 
             virtual std::uint32_t NextInteger() = 0;
 

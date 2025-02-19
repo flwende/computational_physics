@@ -1,3 +1,5 @@
+#include <mutex>
+
 #include "random/lcg32.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -6,63 +8,106 @@
 
 namespace XXX_NAMESPACE
 {
-    LCG32::LCG32(std::uint32_t seed)
-        :
-        current_element(buffer_size - 1),
-        num_updates(0)
+    namespace
     {
+        std::mutex m_init;
+
         // Prameters are taken from NUMERICAL RECIPES.
-        static constexpr std::uint32_t num_parameters = 5;
-        static constexpr std::uint32_t parameters[num_parameters][2] = {
+        constexpr std::int32_t num_parameters = 5;
+        constexpr std::uint32_t parameters[num_parameters][2] = {
             {1372383749u, 1289706101u},
             {2891336453u, 1640531513u},
             {2024337845u, 797082193u},
             {32310901u, 626627237u},
             {29943829u, 1013904223u}};
-
-        std::uint32_t seed_init;
-        #pragma omp critical (RANDOM_LOCK)
-        {
-            // Random assignment of parameters to concurrent lcgs.
-            srand48(seed);
-            for (std::int32_t i = 0; i < simd_width; ++i)
-            {
-                const std::int32_t selection = static_cast<std::int32_t>(1000.0 * drand48()) % num_parameters;
-                a[i] = parameters[selection][0];
-                c[i] = parameters[selection][1];
-            }
-
-            // Generate the seed value for calling Init method.
-            seed_init = static_cast<std::uint32_t>(0xEFFFFFFFu * drand48()) + 1;
-        }
-
-        Init(seed_init);
     }
 
-    void LCG32::Init(std::uint32_t seed)
+    template <std::int32_t WaveFrontSize>
+    LCG32_State<WaveFrontSize>::LCG32_State(std::uint32_t seed)
+        :
+        iteration(0)
     {
-        #pragma omp critical (RANDOM_LOCK)
+        Init(seed);
+    }
+
+    template <std::int32_t WaveFrontSize>
+    void LCG32_State<WaveFrontSize>::Init(const std::uint32_t seed)
+    {
+        // Random initialization of the first lcg.
         {
-            // Random initialization of the first lcg.
+            std::lock_guard<std::mutex> lock(m_init);
             srand48(seed);
+
+            // Random assignment of parameters to concurrent lcgs.
+            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+            {
+                const std::int32_t select = static_cast<std::int32_t>(1000.0 * drand48()) % num_parameters;
+                a[i] = parameters[select][0];
+                c[i] = parameters[select][1];
+            }
+
             state[0] = a[0] * (static_cast<std::uint32_t>(0xEFFFFFFFu * drand48()) + 1) + c[0];
         }
 
         // The n-th lcg is initialized using the state of the (n - 1)-th lcg.
-        for (std::int32_t i = 1; i < simd_width; ++i)
+        for (std::int32_t i = 1; i < WaveFrontSize; ++i)
             state[i] = a[i] * state[i - 1] + c[i];
+    }
+
+    template <std::int32_t WaveFrontSize>
+    void LCG32_State<WaveFrontSize>::Update()
+    {
+        #if defined(RANDOM_SHUFFLE_STATE)
+        // Exchange lcg states at random.
+        std::uint32_t buffer[WaveFrontSize];
+        if (((++iteration) % shuffle_distance) == 0)
+        {
+            constexpr std::int32_t m = WaveFrontSize - 1;
+            const std::int32_t shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
+
+            #pragma omp simd
+            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+                buffer[i] = a[(i + shuffle_val) & m];
+
+            #pragma omp simd
+            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+                a[i] = buffer[i];
+
+            #pragma omp simd
+            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+                buffer[i] = c[(i + shuffle_val) & m];
+
+            #pragma omp simd
+            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+                c[i] = buffer[i];
+        }
+        #endif
+
+        // Update internal state.
+        #pragma omp simd
+        for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+            state[i] = a[i] * state[i] + c[i];
+    }
+
+    LCG32::LCG32(std::uint32_t seed)
+        :
+        state(seed)
+    {}
+
+    void LCG32::Init(const std::uint32_t seed)
+    {
+        state.Init(seed);
     }
 
     std::uint32_t LCG32::NextInteger()
     {
-        if ((++current_element) == buffer_size)
+        if ((++current) == WaveFrontSize)
         {
-            // Buffer is empty: refill it.
-            Update();
-            current_element = 0;
+            state.Update();
+            current = 0;
         }
 
-        return buffer[current_element];
+        return state[current];
     }
 
     float LCG32::NextReal()
@@ -73,12 +118,16 @@ namespace XXX_NAMESPACE
 
     void LCG32::NextInteger(std::uint32_t* ptr, const std::size_t n)
     {
-        // Write as many chunks of numbers as possible to ptr.
-        const std::size_t i_max = (n / buffer_size) * buffer_size;
-        for (std::size_t i = 0; i < i_max; i += buffer_size)
-            Update(&ptr[i]);
+        const std::size_t i_max = (n / WaveFrontSize) * WaveFrontSize;
+        for (std::size_t i = 0; i < i_max; i += WaveFrontSize)
+        {
+            state.Update();
+            #pragma omp simd
+            for (std::int32_t ii = 0; ii < WaveFrontSize; ++ii)
+                ptr[i + ii] = state[ii];
+        }
 
-        // Take the rest from the internal buffer.
+        current = WaveFrontSize - 1;
         for (std::size_t i = i_max; i < n; ++i)
             ptr[i] = NextInteger();
     }
@@ -92,50 +141,5 @@ namespace XXX_NAMESPACE
         // Convert integer to float over [0.0, 1.0].
         for (std::size_t i = 0; i < n; ++i)
             ptr[i] = 2.3283064370807974e-10f * i_ptr[i];
-    }
-
-    void LCG32::Update(std::uint32_t* ptr)
-    {
-        // If no output buffer is specified, use the internal buffer.
-        if (ptr == nullptr)
-            ptr = buffer;
-
-        #if defined(RANDOM_SHUFFLE_STATE)
-        // Exchange lcg states at random,
-        if (((++num_updates) % shuffle_distance) == 0)
-        {
-            constexpr std::int32_t m = simd_width - 1;
-            const std::int32_t shuffle_val = state[num_updates & m] + (num_updates & 1 ? 0 : 1);
-
-            #pragma omp simd
-            for (std::int32_t ii = 0; ii < simd_width; ++ii)
-                ptr[ii] = a[(ii + shuffle_val) & m];
-
-            #pragma omp simd
-            for (std::int32_t ii = 0; ii < simd_width; ++ii)
-                a[ii] = ptr[ii];
-
-            #pragma omp simd
-            for (std::int32_t ii = 0; ii < simd_width; ++ii)
-                ptr[ii] = c[(ii + shuffle_val) & m];
-
-            #pragma omp simd
-            for (std::int32_t ii = 0; ii < simd_width; ++ii)
-                c[ii] = ptr[ii];
-        }
-        #endif
-
-        // Generate buffer_size many random integers.
-        for (std::int32_t i = 0; i < buffer_size; i += simd_width)
-        {
-            #pragma omp simd
-            for (std::int32_t ii = 0; ii < simd_width; ++ii)
-            {
-                // Update internal state.
-                state[ii] = a[ii] * state[ii] + c[ii];
-                // Push to output buffer.
-                ptr[i + ii] = state[ii];
-            }
-        }
     }
 }

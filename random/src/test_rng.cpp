@@ -12,8 +12,10 @@
 #define WARMUP (1024 * 1024)
 #define MEASUREMENT (1 * 1024 * 1024 * 1024)
 
-int main()
+int main(int argc, char** argv)
 {
+    const std::int32_t select = (argc > 1 ? std::atoi(argv[1]) : 0);
+
     #pragma omp parallel
     {
         constexpr std::size_t buffer_size = 32;
@@ -40,17 +42,15 @@ int main()
 
         time = omp_get_wtime() - time;
 
-        #pragma omp critical
+        if (omp_get_thread_num() == select)
         {
-            std::cout << "Thread " << omp_get_thread_num() << ": " << std::endl;
+            std::cout << "Thread " << select << ": " << std::endl;
             for (std::size_t i = 0; i < buffer_size; ++i)
             {
                 std::cout << numbers[i] << " ";
             }
             std::cout << std::endl;
         }
-
-        #pragma omp barrier
 
         #pragma omp master
         {
