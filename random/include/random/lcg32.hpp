@@ -50,7 +50,7 @@ namespace XXX_NAMESPACE
             static constexpr std::size_t shuffle_distance = 15;
     };
 
-    class LCG32 : public RandomNumberGenerator
+    class alignas(128) LCG32 : public RandomNumberGenerator
     {
         public:
             LCG32(std::uint32_t seed = 1);

@@ -122,6 +122,7 @@ namespace XXX_NAMESPACE
         for (std::size_t i = 0; i < i_max; i += WaveFrontSize)
         {
             state.Update();
+
             #pragma omp simd
             for (std::int32_t ii = 0; ii < WaveFrontSize; ++ii)
                 ptr[i + ii] = state[ii];

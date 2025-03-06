@@ -12,3 +12,4 @@ include_directories(${CMAKE_BINARY_DIR}/../utility)
 
 add_subdirectory(ising)
 add_subdirectory(random)
+add_subdirectory(utility)
