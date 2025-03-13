@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 
+#include "device/device.hpp"
 #include "random.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -19,12 +20,13 @@ namespace XXX_NAMESPACE
     // * Saul Teukolsky, William H. Press and William T. Vetterling,
     //      "Numerical Recipes in C: The Art of Scientific Computing, 3rd Edition"
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    template <DeviceType Type>
     class LCG32;
 
     template <std::int32_t WaveFrontSize>
     class LCG32_State
     {
-        friend class LCG32;
+        template <DeviceType> friend class LCG32;
 
         public:
             LCG32_State(std::uint32_t seed = 1);
@@ -50,9 +52,14 @@ namespace XXX_NAMESPACE
             static constexpr std::size_t shuffle_distance = 15;
     };
 
-    class alignas(128) LCG32 : public RandomNumberGenerator
+    template <>
+    class alignas(128) LCG32<DeviceType::CPU> : public RandomNumberGenerator
     {
+        static constexpr std::int32_t WaveFrontSize = CPU::WavefrontSize<std::uint32_t>();
+
         public:
+            using State = LCG32_State<WaveFrontSize>;
+
             LCG32(std::uint32_t seed = 1);
 
             void Init(const std::uint32_t seed = 1) override;
@@ -76,9 +83,7 @@ namespace XXX_NAMESPACE
 
             virtual void NextReal(float* ptr, const std::size_t n);
 
-            // SIMD width for data type std::uint32_t on the selected platform.
-            static constexpr std::int32_t WaveFrontSize = simd::Type<std::uint32_t>::width;
-            LCG32_State<WaveFrontSize> state;
+            State state;
 
             // Current element in the buffer to be accessed next.
             std::int32_t current;

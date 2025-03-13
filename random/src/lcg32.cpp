@@ -89,17 +89,17 @@ namespace XXX_NAMESPACE
             state[i] = a[i] * state[i] + c[i];
     }
 
-    LCG32::LCG32(std::uint32_t seed)
+    LCG32<DeviceType::CPU>::LCG32(std::uint32_t seed)
         :
         state(seed)
     {}
 
-    void LCG32::Init(const std::uint32_t seed)
+    void LCG32<DeviceType::CPU>::Init(const std::uint32_t seed)
     {
         state.Init(seed);
     }
 
-    std::uint32_t LCG32::NextInteger()
+    std::uint32_t LCG32<DeviceType::CPU>::NextInteger()
     {
         if ((++current) == WaveFrontSize)
         {
@@ -110,13 +110,13 @@ namespace XXX_NAMESPACE
         return state[current];
     }
 
-    float LCG32::NextReal()
+    float LCG32<DeviceType::CPU>::NextReal()
     {
         // Convert integer to float over [0.0, 1.0].
         return 2.3283064370807974e-10f * NextInteger();
     }
 
-    void LCG32::NextInteger(std::uint32_t* ptr, const std::size_t n)
+    void LCG32<DeviceType::CPU>::NextInteger(std::uint32_t* ptr, const std::size_t n)
     {
         const std::size_t i_max = (n / WaveFrontSize) * WaveFrontSize;
         for (std::size_t i = 0; i < i_max; i += WaveFrontSize)
@@ -133,7 +133,7 @@ namespace XXX_NAMESPACE
             ptr[i] = NextInteger();
     }
 
-    void LCG32::NextReal(float* ptr, const std::size_t n)
+    void LCG32<DeviceType::CPU>::NextReal(float* ptr, const std::size_t n)
     {
         // Reinterpret the output buffer type and fill with integers.
         std::uint32_t* i_ptr = reinterpret_cast<std::uint32_t*>(ptr);

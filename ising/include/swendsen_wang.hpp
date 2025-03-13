@@ -16,6 +16,8 @@
 
 namespace XXX_NAMESPACE
 {
+    using RNG = LCG32<DeviceType::CPU>;
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Swendsen Wang multi-cluster algorithm for the 2-dimensional Ising model.
     //

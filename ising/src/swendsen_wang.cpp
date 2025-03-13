@@ -15,7 +15,7 @@ namespace XXX_NAMESPACE
         const std::int32_t num_threads = omp_get_max_threads();
         rng.reserve(num_threads);
         for (std::int32_t i = 0; i < num_threads; ++i)
-            rng.emplace_back(new LCG32(1 + i));
+            rng.emplace_back(new RNG(1 + i));
     }
 
     void SwendsenWang_2D::Update(Lattice<2>& lattice, const float temperature)
