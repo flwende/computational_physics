@@ -1,9 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <thread>
-
-#include "simd/simd.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -11,51 +8,41 @@
 
 namespace XXX_NAMESPACE
 {
-    enum class DeviceType : std::int32_t
+    enum class DeviceName : std::int32_t
     {
-        CPU = 1
+        CPU = 1,
+        AMD_GPU = 2
     };
 
-    template <DeviceType T>
+    template <DeviceName T>
     struct Device;
 
     class AbstractDevice
     {
-
         public:
             virtual ~AbstractDevice() = default;
 
             virtual bool IsOffloadDevice() const = 0;
 
-            virtual std::int32_t Concurrency() const = 0;
-    };
+            virtual std::uint32_t Concurrency() const = 0;
 
-    class CPU final : public AbstractDevice
-    {
-        public:
-            CPU() : CPU(std::thread::hardware_concurrency()) {}
+            DeviceName Name() const { return device_name; }
 
-            CPU(const std::int32_t concurrency)
+            std::uint32_t DeviceID() const { return device_id; }
+
+        protected:
+            AbstractDevice(const DeviceName device_name, const std::uint32_t device_id)
                 :
-                concurrency(concurrency)
+                device_name(device_name),
+                device_id(device_id)
             {}
 
-            bool IsOffloadDevice() const override { return false; }
-
-            std::int32_t Concurrency() const override { return concurrency; }
-
-            static constexpr DeviceType Type() { return DeviceType::CPU; }
-
-            template <typename T>
-            static constexpr std::int32_t WavefrontSize() { return simd::Type<T>::width; }
-
-        private:
-            const std::int32_t concurrency;
-    };
-
-    template <>
-    struct Device<DeviceType::CPU>
-    {
-        using Type = CPU;
+            DeviceName device_name;
+            std::uint32_t device_id;
     };
 }
+
+#include "device_cpu.hpp"
+#include "device_amd_gpu.hpp"
+
+#undef XXX_NAMESPACE

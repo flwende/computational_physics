@@ -1,4 +1,4 @@
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "src/*.cpp")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "src/*.cpp" "${CMAKE_BINARY_DIR}/../utility/hip/*.cpp")
 
 add_executable(TestRNG ${sources})
 

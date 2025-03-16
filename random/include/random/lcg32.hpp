@@ -20,13 +20,13 @@ namespace XXX_NAMESPACE
     // * Saul Teukolsky, William H. Press and William T. Vetterling,
     //      "Numerical Recipes in C: The Art of Scientific Computing, 3rd Edition"
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    template <DeviceType Type>
+    template <DeviceName Type>
     class LCG32;
 
     template <std::int32_t WaveFrontSize>
     class LCG32_State
     {
-        template <DeviceType> friend class LCG32;
+        template <DeviceName> friend class LCG32;
 
         public:
             LCG32_State(std::uint32_t seed = 1);
@@ -37,6 +37,9 @@ namespace XXX_NAMESPACE
 
             auto operator[](const std::int32_t index) const { return state[index]; }
 
+            // AMD GPU specific functions.
+            #include "random/lcg32_amd_gpu.hpp"
+
         protected:
             // Internal state of simd_width many concurrent lcgs.
             std::uint32_t state[WaveFrontSize];
@@ -46,14 +49,14 @@ namespace XXX_NAMESPACE
             std::uint32_t c[WaveFrontSize];
 
             // Number of updates of the internal state already performed.
-            std::uint32_t iteration;
+            std::int32_t iteration;
 
             // Number of updates of the internal state after which the concurrent lcgs exchange their parameters.
-            static constexpr std::size_t shuffle_distance = 15;
+            static constexpr std::int32_t shuffle_distance = 15;
     };
 
     template <>
-    class alignas(128) LCG32<DeviceType::CPU> : public RandomNumberGenerator
+    class alignas(128) LCG32<DeviceName::CPU> : public RandomNumberGenerator
     {
         static constexpr std::int32_t WaveFrontSize = CPU::WavefrontSize<std::uint32_t>();
 
@@ -88,6 +91,17 @@ namespace XXX_NAMESPACE
             // Current element in the buffer to be accessed next.
             std::int32_t current;
     };
+
+#if defined __HIPCC__
+    template <>
+    class alignas(128) LCG32<DeviceName::AMD_GPU> : public RandomNumberGenerator
+    {
+        static constexpr std::int32_t WaveFrontSize = AMD_GPU::WavefrontSize<std::uint32_t>();
+
+        public:
+            using State = LCG32_State<WaveFrontSize>;
+    };
+#endif
 }
 
 #undef XXX_NAMESPACE

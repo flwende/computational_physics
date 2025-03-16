@@ -20,7 +20,7 @@ static Barrier barrier;
 constexpr std::int32_t Buffersize {64};
 
 template <typename RNG>
-void Kernel(RNG& rng, std::vector<float>& output, const std::pair<std::size_t, std::size_t>& iterations, bool write_back)
+void Kernel(RNG& rng, std::vector<float>& output, const std::pair<std::size_t, std::size_t>& iterations, const bool write_back)
 {
     const auto [warmup_iterations, benchmark_iterations] = iterations;
     std::vector<float> random_numbers(Buffersize);
@@ -44,14 +44,14 @@ void Kernel(RNG& rng, std::vector<float>& output, const std::pair<std::size_t, s
         output.swap(random_numbers);
 }
 
-template <typename RNG, DeviceType Target>
+template <template <DeviceName> typename RNG, DeviceName Target>
 std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations)
 {
     const typename Device<Target>::Type target;
     const std::int32_t num_threads = target.Concurrency();
     barrier.Reset(num_threads + 1);
 
-    std::vector<RNG> rng;
+    std::vector<RNG<Target>> rng;
     rng.reserve(num_threads);
     for (std::int32_t i = 0; i < num_threads; ++i)
        rng.emplace_back(i + 1);
@@ -61,8 +61,8 @@ std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id,
     std::vector<std::thread> threads;
     threads.reserve(num_threads);
     for (std::int32_t i = 0; i < num_threads; ++i)
-        threads.emplace_back(Kernel<RNG>, std::ref(rng.at(i)), std::ref(random_numbers),
-            std::make_pair<std::int32_t, std::int32_t>(warmup_iterations / num_threads, benchmark_iterations / num_threads),
+        threads.emplace_back(Kernel<RNG<Target>>, std::ref(rng.at(i)), std::ref(random_numbers),
+            std::make_pair<std::size_t, std::size_t>(warmup_iterations / num_threads, benchmark_iterations / num_threads),
             i == reporting_id);
 
     // Synchronize with threads in the Kernel kernel.
@@ -79,4 +79,4 @@ std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id,
 }
 
 // Explicit instantiation.
-template std::pair<double, std::vector<float>> Benchmark<LCG32<DeviceType::CPU>, DeviceType::CPU>(const std::int32_t, const std::pair<std::size_t, std::size_t>);
+template std::pair<double, std::vector<float>> Benchmark<LCG32, DeviceName::CPU>(const std::int32_t, const std::pair<std::size_t, std::size_t>);
