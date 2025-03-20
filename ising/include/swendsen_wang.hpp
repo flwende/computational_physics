@@ -8,7 +8,8 @@
 #include "atomic/atomic.hpp"
 #include "simd/simd.hpp"
 #include "random/random.hpp"
-#include "lattice.hpp"
+#include "lattice_mc.hpp"
+//#include "lattice.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -16,7 +17,7 @@
 
 namespace XXX_NAMESPACE
 {
-    using RNG = LCG32<DeviceName::CPU>;
+    //using RNG = LCG32<DeviceName::CPU>;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Swendsen Wang multi-cluster algorithm for the 2-dimensional Ising model.
@@ -26,7 +27,8 @@ namespace XXX_NAMESPACE
     //            Phys. Rev. Lett., 58:86-88, Jan 1987
     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    class SwendsenWang_2D
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    class SwendsenWang_2D : public LatticeMonteCarloAlgorithm<2, RNG, Target>
     {
         // Tile size for parallel processing: the innermost dimension should be a
         // multiple of the SIMD width of the target platform.
@@ -52,7 +54,7 @@ namespace XXX_NAMESPACE
             // Steps 1-3: find all clusters (connected components)
             //
             // Sep 4: flip clusters individually
-            void Update(Lattice<2>& lattice, const float temperature);
+            void Update(Lattice<2>& lattice, const float temperature) override;
 
         protected:
             // Connected component labeling (ccl) based on an idea of Coddington and Baillie within tiles.

@@ -9,6 +9,8 @@
 #define XXX_NAMESPACE cp
 #endif
 
+using namespace XXX_NAMESPACE;
+
 namespace defaults
 {
     static constexpr std::int32_t n_0 = 32;
@@ -18,7 +20,7 @@ namespace defaults
 
 static constexpr std::int32_t n_warmup = 10000;
 static constexpr std::int32_t n_sep = 20;
-static constexpr std::int32_t n_measurement = n_sep * 10000;
+static constexpr std::int32_t n_measurement = n_sep * 100000;
 
 int main(int argc, char **argv)
 {
@@ -30,8 +32,8 @@ int main(int argc, char **argv)
     const float temperature = (argc > 3 ? atof(argv[3]) : defaults::temperature);
 
     // Create spin system.
-    XXX_NAMESPACE::Lattice<2> lattice({n_0, n_1});
-    XXX_NAMESPACE::SwendsenWang_2D s;
+    Lattice<2> lattice({n_0, n_1});
+    SwendsenWang_2D<LCG32, DeviceName::CPU> s;
 
     // Thermalization.
     for (std::int32_t i = 0; i < n_warmup; ++i)

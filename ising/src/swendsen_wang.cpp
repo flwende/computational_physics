@@ -10,15 +10,17 @@
 
 namespace XXX_NAMESPACE
 {
-    SwendsenWang_2D::SwendsenWang_2D()
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    SwendsenWang_2D<RNG, Target>::SwendsenWang_2D()
     {
         const std::int32_t num_threads = omp_get_max_threads();
         rng.reserve(num_threads);
         for (std::int32_t i = 0; i < num_threads; ++i)
-            rng.emplace_back(new RNG(1 + i));
+            rng.emplace_back(new RNG<Target>(1 + i));
     }
 
-    void SwendsenWang_2D::Update(Lattice<2>& lattice, const float temperature)
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    void SwendsenWang_2D<RNG, Target>::Update(Lattice<2>& lattice, const float temperature)
     {
         if (!cluster.Initialized())
             cluster.Resize(lattice.Extent());
@@ -39,7 +41,8 @@ namespace XXX_NAMESPACE
         FlipClusters(lattice);
     }
 
-    void SwendsenWang_2D::AssignLabels(Lattice<2>& lattice, const float p_add)
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    void SwendsenWang_2D<RNG, Target>::AssignLabels(Lattice<2>& lattice, const float p_add)
     {
         const std::int32_t n_0 = lattice.Extent()[0];
         const std::int32_t n_1 = lattice.Extent()[1];
@@ -65,7 +68,8 @@ namespace XXX_NAMESPACE
         }
     }
 
-    void SwendsenWang_2D::MergeLabels(Lattice<2>& lattice, const float p_add)
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    void SwendsenWang_2D<RNG, Target>::MergeLabels(Lattice<2>& lattice, const float p_add)
     {
         const std::int32_t n_0 = lattice.Extent()[0];
         const std::int32_t n_1 = lattice.Extent()[1];
@@ -131,7 +135,8 @@ namespace XXX_NAMESPACE
     //
     // The atomic_min() method makes sure that the field behind ptr is not corrupted when establishing
     // label equivalences in a multi-threaded context.
-    void SwendsenWang_2D::Merge(LabelType* ptr, LabelType a, LabelType b)
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    void SwendsenWang_2D<RNG, Target>::Merge(LabelType* ptr, LabelType a, LabelType b)
     {
         // The loop is guaranteed to break somewhen (maybe not that obvious)
         while (true)
@@ -165,7 +170,8 @@ namespace XXX_NAMESPACE
     }
 
     // Resolve all label equivalences
-    void SwendsenWang_2D::ResolveLabels()
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    void SwendsenWang_2D<RNG, Target>::ResolveLabels()
     {
         const std::size_t n_0 = cluster.Extent()[0];
         const std::size_t n_1 = cluster.Extent()[1];
@@ -187,7 +193,8 @@ namespace XXX_NAMESPACE
     // of each cluster to be either an even or an odd number is the same.
     // We thus flip a cluster only if X is odd, that is, if (X & 0x1) is equal to 0x1.
     // Flipping is implemented via a bitwise XOR operation.
-    void SwendsenWang_2D::FlipClusters(Lattice<2>& lattice)
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    void SwendsenWang_2D<RNG, Target>::FlipClusters(Lattice<2>& lattice)
     {
         const std::size_t num_sites = lattice.NumSites();
         const auto* c_ptr = cluster.RawPointer();
@@ -197,4 +204,7 @@ namespace XXX_NAMESPACE
         for (std::size_t i = 0; i < num_sites; ++i)
             ptr[i] ^= (c_ptr[i] & 0x1);
     }
+
+    // Explicit template instantiation.
+    template class SwendsenWang_2D<LCG32, DeviceName::CPU>;
 }

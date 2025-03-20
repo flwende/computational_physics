@@ -37,8 +37,9 @@ namespace XXX_NAMESPACE
     // 5. translate local labels to global labels.
     // Label L is mapped to L' = ((n_offset[1] + b) * n[0] + n_offset[0] + a, where
     // a = (L % n_0) and b = (L / n_0) and n_0 is either N_0 or n_sub[0].
+    template <template <DeviceName> typename RNG, DeviceName Target>
     template <std::int32_t N_0>
-    void SwendsenWang_2D::CCL_SelfLabeling(Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub)
+    void SwendsenWang_2D<RNG, Target>::CCL_SelfLabeling(Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub)
     {
         const std::uint32_t thread_id = omp_get_thread_num();
 

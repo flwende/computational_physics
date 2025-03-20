@@ -39,3 +39,5 @@ namespace XXX_NAMESPACE
             MultiDimensionalArray<Spin, Dimension> spins;
     };
 }
+
+#undef XXX_NAMESPACE
