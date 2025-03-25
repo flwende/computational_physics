@@ -1,7 +1,7 @@
+#include <chrono>
 #include <iostream>
 #include <cstdlib>
 #include <cstdint>
-#include <omp.h>
 
 #include "swendsen_wang.hpp"
 
@@ -18,9 +18,9 @@ namespace defaults
     static constexpr float temperature = 2.2691853142130221f;
 }
 
-static constexpr std::int32_t n_warmup = 10000;
+static constexpr std::int32_t n_warmup = 1000;
 static constexpr std::int32_t n_sep = 20;
-static constexpr std::int32_t n_measurement = n_sep * 100000;
+static constexpr std::int32_t n_measurement = n_sep * 10000;
 
 int main(int argc, char **argv)
 {
@@ -33,21 +33,20 @@ int main(int argc, char **argv)
 
     // Create spin system.
     Lattice<2> lattice({n_0, n_1});
-    SwendsenWang_2D<LCG32, DeviceName::CPU> s;
 
     // Thermalization.
     for (std::int32_t i = 0; i < n_warmup; ++i)
-        s.Update(lattice, temperature);
+        lattice.Update<SwendsenWang_2D, LCG32>(temperature);
 
     // Measurement.
     double energy = 0.0;
     double magnetization = 0.0;
-    double time = omp_get_wtime();
+    const auto starttime = std::chrono::high_resolution_clock::now();
     {
         for (std::int32_t i = 0; i < n_measurement; i += n_sep)
         {
             for (std::int32_t ii = 0; ii < n_sep; ++ii)
-                s.Update(lattice, temperature);
+                lattice.Update<SwendsenWang_2D, LCG32>(temperature);
 
             // Take measurements every n_sep update.
             auto [e, m] = lattice.GetEnergyAndMagnetization();
@@ -55,11 +54,12 @@ int main(int argc, char **argv)
             magnetization += m;
         }
     }
-    time = omp_get_wtime() - time;
+    const auto endtime = std::chrono::high_resolution_clock::now();
+    const double elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-6;
 
     // Output the update time per site ..
     std::cout << "Update time per site (lattice = " << n_0 << " x " << n_1 << "): ";
-    std::cout << time * 1.0e9 / (static_cast<std::int64_t>(n_measurement) * n_0 * n_1) << " ns" << std::endl;
+    std::cout << elapsed_time_s * 1.0e9 / (static_cast<std::int64_t>(n_measurement) * n_0 * n_1) << " ns" << std::endl;
 
     // .. and mean internal energy and magnetization, both per site.
     energy /= (n_measurement / n_sep);

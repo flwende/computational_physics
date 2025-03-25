@@ -7,6 +7,8 @@
 #include <vector>
 
 #include "array/multi_dimensional_array.hpp"
+#include "device/device.hpp"
+#include "thread_group/thread_group.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -31,12 +33,38 @@ namespace XXX_NAMESPACE
             auto operator[](const std::int32_t index) { return spins[index]; }
             const auto operator[](const std::int32_t index) const { return spins[index]; }
 
-            std::pair<double, double> GetEnergyAndMagnetization() const;
+            template <template <template <DeviceName> typename, DeviceName> typename Strategy,
+                template <DeviceName> typename RNG, DeviceName Target = DeviceName::CPU>
+            void Update(const float temperature)
+            {
+                using StrategyImplementation = Strategy<RNG, Target>;
+                static_assert(StrategyImplementation::Dimension == Dimension, "Error: Dimension mismatch.");
+
+                if constexpr (Target == DeviceName::CPU)
+                    CreateThreadGroup(); // Create thread group if not done already.
+
+                static StrategyImplementation strategy(*thread_group);
+                strategy.Update(*this, temperature);
+            }
+
+            template <DeviceName Target = DeviceName::CPU>
+            std::pair<double, double> GetEnergyAndMagnetization();
 
         protected:
+            void CreateThreadGroup()
+            {
+                if (!thread_group.get())
+                {
+                    const std::int32_t num_threads = GetEnv("NUM_THREADS", std::thread::hardware_concurrency());
+                    thread_group.reset(new ThreadGroup(num_threads));
+                }
+            }
+
             const std::array<std::int32_t, Dimension> extent;
             const std::size_t num_sites;
             MultiDimensionalArray<Spin, Dimension> spins;
+            std::unique_ptr<ThreadGroup> thread_group;
+
     };
 }
 

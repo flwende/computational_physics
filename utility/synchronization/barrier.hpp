@@ -53,6 +53,9 @@ namespace XXX_NAMESPACE
                     cv.wait(lock, [this, current_epoch] () { return epoch != current_epoch; });
                 }
             }
+
+            // Special semantics, e.g., for master-worker pattern.
+            void Signal() { Wait(); }
             
         private:
             std::uint32_t expected{1};
@@ -93,6 +96,9 @@ namespace XXX_NAMESPACE
                         std::this_thread::yield();
                 }
             }
+
+            // Special semantics, e.g., for master-worker pattern.
+            void Signal() { Wait(); }
             
         private:
             std::atomic<std::uint32_t> expected{1}, value{0}, epoch{0};

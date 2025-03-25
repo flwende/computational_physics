@@ -2,6 +2,7 @@
 #include <cmath>
 #include <omp.h>
 
+#include "environment/environment.hpp"
 #include "swendsen_wang.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -11,9 +12,12 @@
 namespace XXX_NAMESPACE
 {
     template <template <DeviceName> typename RNG, DeviceName Target>
-    SwendsenWang_2D<RNG, Target>::SwendsenWang_2D()
+    SwendsenWang_2D<RNG, Target>::SwendsenWang_2D(ThreadGroup& thread_group)
+        :
+        thread_group(thread_group)
     {
-        const std::int32_t num_threads = omp_get_max_threads();
+        const std::int32_t num_threads = thread_group.Size();
+
         rng.reserve(num_threads);
         for (std::int32_t i = 0; i < num_threads; ++i)
             rng.emplace_back(new RNG<Target>(1 + i));
@@ -28,91 +32,106 @@ namespace XXX_NAMESPACE
         // Probability for adding aligned neighboring sites to the cluster.
         const float p_add = 1.0f - static_cast<float>(std::exp(-2.0f / temperature));
 
-        // Labeling within tiles.
-        AssignLabels(lattice, p_add);
+        thread_group.Execute([&,this] (ThreadContext& context, auto&&... args)
+            {
+                AssignLabels(context, args...);
+                context.Synchronize();
+                MergeLabels(context, args...);
+            },
+            std::ref(lattice), p_add);
 
-        // Merging the tiles by establishing label equivalences.
-        MergeLabels(lattice, p_add);
+        thread_group.Execute([&,this] (auto&&... args) { ResolveLabels(args...); });
 
-        // Resolve all labels for the final labeling.
-        ResolveLabels();
-
-        // Flip clusters.
-        FlipClusters(lattice);
+        thread_group.Execute([&,this] (auto&&... args) { FlipClusters(args...); }, std::ref(lattice));
     }
 
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::AssignLabels(Lattice<2>& lattice, const float p_add)
+    void SwendsenWang_2D<RNG, Target>::AssignLabels(ThreadContext& context, Lattice<2>& lattice, const float p_add)
     {
-        const std::int32_t n_0 = lattice.Extent()[0];
-        const std::int32_t n_1 = lattice.Extent()[1];
+        const std::int32_t thread_id = context.ThreadId();
+        const std::int32_t num_threads = context.NumThreads();
 
-        #pragma omp parallel for collapse(2)
-        for (std::int32_t j = 0; j < n_1; j += chunk[1])
+        const std::int32_t extent_0 = lattice.Extent()[0];
+        const std::int32_t extent_1 = lattice.Extent()[1];
+
+        const std::int32_t n_0 = extent_0 / chunk[0];
+        const std::int32_t n_1 = extent_1 / chunk[1];
+        const std::int32_t n_total = n_0 * n_1;
+
+        const std::int32_t n_chunk = (n_total + num_threads - 1) / num_threads;
+        const std::int32_t n_start = thread_id * n_chunk;
+        const std::int32_t n_end = std::min(n_start + n_chunk, n_total);
+
+        for (std::int32_t n = n_start; n < n_end; ++n)
         {
-            for (std::int32_t i = 0; i < n_0; i += chunk[0])
+            const std::int32_t j = (n / n_0) * chunk[1];
+            const std::int32_t i = (n % n_0) * chunk[0];
+            const std::array<int32_t, 2> n_offset{i, j};
+            const std::array<int32_t, 2> n_sub{std::min(chunk[0], extent_0 - i), std::min(chunk[1], extent_1 - j)};
+            if (n_sub[0] == chunk[0])
             {
-                const std::array<int32_t, 2> n_offset{i, j};
-                const std::array<int32_t, 2> n_sub{std::min(chunk[0], n_0 - i), std::min(chunk[1], n_1 - j)};
-                if (n_sub[0] == chunk[0])
-                {
-                    // We can call a version of that method with the extent in 0-direction being
-                    // a compile time constant (hopefully allowing the compiler to do better optimizations)
-                    CCL_SelfLabeling<chunk[0]>(lattice, p_add, n_offset, n_sub);
-                }
-                else
-                {
-                    CCL_SelfLabeling(lattice, p_add, n_offset, n_sub);
-                }
+                // We can call a version of that method with the extent in 0-direction being
+                // a compile time constant (hopefully allowing the compiler to do better optimizations)
+                CCL_SelfLabeling<chunk[0]>(context, lattice, p_add, n_offset, n_sub);
+            }
+            else
+            {
+                CCL_SelfLabeling(context, lattice, p_add, n_offset, n_sub);
             }
         }
     }
 
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::MergeLabels(Lattice<2>& lattice, const float p_add)
+    void SwendsenWang_2D<RNG, Target>::MergeLabels(ThreadContext& context, Lattice<2>& lattice, const float p_add)
     {
-        const std::int32_t n_0 = lattice.Extent()[0];
-        const std::int32_t n_1 = lattice.Extent()[1];
+        const std::int32_t thread_id = context.ThreadId();
+        const std::int32_t num_threads = context.NumThreads();
 
-        #pragma omp parallel
+        const std::int32_t extent_0 = lattice.Extent()[0];
+        const std::int32_t extent_1 = lattice.Extent()[1];
+
+        const std::int32_t n_0 = extent_0 / chunk[0];
+        const std::int32_t n_1 = extent_1 / chunk[1];
+        const std::int32_t n_total = n_0 * n_1;
+
+        const std::int32_t n_chunk = (n_total + num_threads - 1) / num_threads;
+        const std::int32_t n_start = thread_id * n_chunk;
+        const std::int32_t n_end = std::min(n_start + n_chunk, n_total);
+
+        constexpr std::int32_t buffer_size = chunk[0] + chunk[1];
+        std::vector<float> buffer(buffer_size);
+
+        for (std::int32_t n = n_start; n < n_end; ++n)
         {
-            const std::uint32_t thread_id = omp_get_thread_num();
-            constexpr std::int32_t buffer_size = chunk[0] + chunk[1];
-            std::vector<float> buffer(buffer_size);
+            const std::int32_t j = (n / n_0) * chunk[1];
+            const std::int32_t i = (n % n_0) * chunk[0];
 
-            #pragma omp for collapse(2)
-            for (std::int32_t j = 0; j < n_1; j += chunk[1])
+            rng[thread_id]->NextReal(buffer);
+
+            const std::int32_t jj_max = std::min(chunk[1], extent_1 - j);
+            const std::int32_t ii_max = std::min(chunk[0], extent_0 - i);
+
+            // Merge in 1-direction
+            for (std::int32_t ii = 0; ii < ii_max; ++ii)
             {
-                for (std::int32_t i = 0; i < n_0; i += chunk[0])
+                if (buffer[ii] < p_add && lattice[j + jj_max - 1][i + ii] == lattice[(j + jj_max) % extent_1][i + ii])
                 {
-                    rng[thread_id]->NextReal(buffer);
+                    LabelType a = cluster[j + jj_max - 1][i + ii];
+                    LabelType b = cluster[(j + jj_max) % extent_1][i + ii];
+                    if (a != b)
+                        Merge(cluster.RawPointer(), a, b);
+                }
+            }
 
-                    const std::int32_t jj_max = std::min(chunk[1], n_1 - j);
-                    const std::int32_t ii_max = std::min(chunk[0], n_0 - i);
-
-                    // Merge in 1-direction
-                    for (std::int32_t ii = 0; ii < ii_max; ++ii)
-                    {
-                        if (buffer[ii] < p_add && lattice[j + jj_max - 1][i + ii] == lattice[(j + jj_max) % n_1][i + ii])
-                        {
-                            LabelType a = cluster[j + jj_max - 1][i + ii];
-                            LabelType b = cluster[(j + jj_max) % n_1][i + ii];
-                            if (a != b)
-                                Merge(cluster.RawPointer(), a, b);
-                        }
-                    }
-
-                    // merge in 0-direction
-                    for (std::int32_t jj = 0; jj < jj_max; ++jj)
-                    {
-                        if (buffer[chunk[0] + jj] < p_add && lattice[j + jj][i + ii_max - 1] == lattice[j + jj][(i + ii_max) % n_0])
-                        {
-                            LabelType a = cluster[j + jj][i + ii_max - 1];
-                            LabelType b = cluster[j + jj][(i + ii_max) % n_0];
-                            if (a != b)
-                                Merge(cluster.RawPointer(), a, b);
-                        }
-                    }
+            // merge in 0-direction
+            for (std::int32_t jj = 0; jj < jj_max; ++jj)
+            {
+                if (buffer[chunk[0] + jj] < p_add && lattice[j + jj][i + ii_max - 1] == lattice[j + jj][(i + ii_max) % extent_0])
+                {
+                    LabelType a = cluster[j + jj][i + ii_max - 1];
+                    LabelType b = cluster[j + jj][(i + ii_max) % extent_0];
+                    if (a != b)
+                        Merge(cluster.RawPointer(), a, b);
                 }
             }
         }
@@ -171,15 +190,19 @@ namespace XXX_NAMESPACE
 
     // Resolve all label equivalences
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::ResolveLabels()
+    void SwendsenWang_2D<RNG, Target>::ResolveLabels(ThreadContext& context)
     {
-        const std::size_t n_0 = cluster.Extent()[0];
-        const std::size_t n_1 = cluster.Extent()[1];
-        const std::size_t n = n_0 * n_1;
+        const std::int32_t threads_id = context.ThreadId();
+        const std::int32_t num_threads = context.NumThreads();
+
+        const std::size_t num_sites = cluster.Extent()[0] * cluster.Extent()[1];
+        const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
+        const std::size_t start = threads_id * chunk_size;
+        const std::size_t end = std::min(start + chunk_size, num_sites);
+
         auto* ptr = cluster.RawPointer();
 
-        #pragma omp parallel for
-        for (std::size_t i = 0; i < n; ++i)
+        for (std::size_t i = start; i < end; ++i)
         {
             LabelType c = ptr[i];
             while (c != ptr[c])
@@ -194,14 +217,21 @@ namespace XXX_NAMESPACE
     // We thus flip a cluster only if X is odd, that is, if (X & 0x1) is equal to 0x1.
     // Flipping is implemented via a bitwise XOR operation.
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::FlipClusters(Lattice<2>& lattice)
+    void SwendsenWang_2D<RNG, Target>::FlipClusters(ThreadContext& context, Lattice<2>& lattice)
     {
+        const std::int32_t threads_id = context.ThreadId();
+        const std::int32_t num_threads = context.NumThreads();
+
         const std::size_t num_sites = lattice.NumSites();
+        const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
+        const std::size_t start = threads_id * chunk_size;
+        const std::size_t end = std::min(start + chunk_size, num_sites);
+
         const auto* c_ptr = cluster.RawPointer();
         auto* ptr = lattice.RawPointer();
 
-        #pragma omp parallel for simd
-        for (std::size_t i = 0; i < num_sites; ++i)
+        #pragma omp simd
+        for (std::size_t i = start; i < end; ++i)
             ptr[i] ^= (c_ptr[i] & 0x1);
     }
 

@@ -1,6 +1,8 @@
+#include <atomic>
 #include <cstdlib>
 #include <numeric>
 
+#include "environment/environment.hpp"
 #include "lattice.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -24,24 +26,45 @@ namespace XXX_NAMESPACE
     }
 
     template <>
-    std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization() const
+    template <>
+    std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<DeviceName::CPU>()
     {
         const std::int32_t n_0 = extent[0];
         const std::int32_t n_1 = extent[1];
-        std::int64_t energy = 0;
-        std::int64_t magnetization = 0;
+
+        std::atomic<std::int64_t> energy{0};
+        std::atomic<std::int64_t> magnetization{0};
         
-        #pragma omp parallel for schedule(static) reduction(+ : energy, magnetization)
-        for (std::int32_t y = 0; y < n_1; ++y)
-        {
-            for (std::int32_t x = 0; x < n_0; ++x)
+        // Create thread group if not done already.
+        CreateThreadGroup();
+
+        auto kernel = [&, this] (ThreadContext& context)
             {
-                energy += (2 * spins[y][x] - 1) * (
-                    (2 * spins[y][(x + 1) % n_0] - 1) +
-                    (2 * spins[(y + 1) % n_1][x] - 1));
-                magnetization += (2 * spins[y][x] - 1);
-            }
-        }
+                const std::int32_t thread_id = context.ThreadId();
+                const std::int32_t num_threads = context.NumThreads();
+
+                const std::int32_t y_chunk = (n_1 + num_threads - 1) / num_threads;
+                const std::int32_t start = thread_id * y_chunk;
+                const std::int32_t end = std::min(start + y_chunk, n_1);
+
+                std::int64_t e{0}, m{0};
+
+                for (std::int32_t y = start; y < end; ++y)
+                {
+                    for (std::int32_t x = 0; x < n_0; ++x)
+                    {
+                        e += (2 * spins[y][x] - 1) * (
+                            (2 * spins[y][(x + 1) % n_0] - 1) +
+                            (2 * spins[(y + 1) % n_1][x] - 1));
+                        m += (2 * spins[y][x] - 1);
+                    }
+                }
+
+                energy += e;
+                magnetization += m;
+            };
+
+        thread_group->Execute(kernel);
 
         return {-1.0 * energy / num_sites, 1.0 * magnetization / num_sites};
     }

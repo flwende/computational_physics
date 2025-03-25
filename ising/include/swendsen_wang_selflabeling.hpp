@@ -39,9 +39,9 @@ namespace XXX_NAMESPACE
     // a = (L % n_0) and b = (L / n_0) and n_0 is either N_0 or n_sub[0].
     template <template <DeviceName> typename RNG, DeviceName Target>
     template <std::int32_t N_0>
-    void SwendsenWang_2D<RNG, Target>::CCL_SelfLabeling(Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub)
+    void SwendsenWang_2D<RNG, Target>::CCL_SelfLabeling(ThreadContext& context, Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub)
     {
-        const std::uint32_t thread_id = omp_get_thread_num();
+        const std::uint32_t thread_id = context.ThreadId();
 
         // Possible compiler optimization: N_0 has default value 0.
         // if the extent of the tile in 0-direction equals chunk[0] (= multiple of the SIMD width),
