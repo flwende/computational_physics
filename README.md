@@ -48,20 +48,30 @@ Directory `ising` contains an implementation of the Swendsen Wang (multi-)cluste
 See above build section:
 ```
 $> cmake --build . --target Ising2D
+$> ./bin/Ising2D -h
+Usage: ./build/bin/Ising2D [options]
+Options:
+  --help, -h         Show this help message
+  --extent=N0xN1     Set lattice dimensions
+  --num_sweeps       Set number of MC sweeps (default: 200000)
+  --temperature      Set temperature (default: 2.2691853)
+  --algorithm        Set algorithm (default: swendsen_wang)
+  --rng=<name>       Set RNG type (default: lcg32)
+  --target=<name>    Set target device (default: cpu)
 ```
 You can adjust the number of lattice update in the `src/ising_2d.cpp` file (see the head of that file).
 
 ### Run
 ```
-$> export OMP_NUM_THREADS=32
-$> ./bin/Ising2D 128 128
+$> export NUM_THREADS=16
+$> ./bin/Ising2D --extent=128x128 --num_sweeps=200000
 ```
 
 ### Output (sample)
-Example output with 32 OpenMP threads:
+Example output with 16 threads:
 ```
-update time per site (lattice = 128 x 128): 8.17733 ns
-internal energy per site: -1.41848
-absolute magnetization per site: 0.550003
+Update time per site (lattice = 128 x 128): 5.30459 ns
+Internal energy per site: -1.41949
+Absolute magnetization per site: -0.332195
 ```
-*NOTE*: this is a Monte Carlo simulation. Changing thread counts and/or number of lattice updates can result in different simulation outputs. However, for the same configuration, the output should be reproducibly the same. Testing for "correctness" can be also done by comparing against exact calculations (see `ising/verification/info.pdf`). For the critical 2-dimensional Ising model with 128 x 128 lattice, for instance, the negative internal energy per spin is `-1.419076272084983`. The value above (`-1.41848`) is a Monte Carlo approximation of this. Running the simulation for longer times should give better results.
+*NOTE*: this is a Monte Carlo simulation. Changing thread counts and/or number of lattice updates can result in different simulation outputs. However, for the same configuration, the output should be reproducibly the same. Testing for "correctness" can be also done by comparing against exact calculations (see `ising/verification/info.pdf`). For the critical 2-dimensional Ising model with 128 x 128 lattice, for instance, the negative internal energy per spin is `-1.419076272084983`. The value above (`-1.41949`) is a Monte Carlo approximation of this. Running the simulation for longer times should give better results.

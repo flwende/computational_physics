@@ -1,0 +1,8 @@
+# AMD Ryzen 7 PRO 4750U
+# g++-14.2 (Debian Testing)
+#
+# NUM_THREADS=16
+# ./bin/Ising2D 128 128
+Update time per site (lattice = 128 x 128): 5.30459 ns
+Internal energy per site: -1.41949
+Absolute magnetization per site: -0.332195

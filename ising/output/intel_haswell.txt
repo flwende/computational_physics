@@ -1,8 +1,0 @@
-# Intel Xeon E5-2630v3 (2 x 8 core + HT)
-# g++-7.3 (CentOS 7.3)
-#
-# OMP_NUM_THREADS=32
-# ./bin/ising_2d.x 128 128
-update time per site (lattice = 128 x 128): 8.17733 ns
-internal energy per site: -1.41848
-absolute magnetization per site: 0.550003
