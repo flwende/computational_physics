@@ -8,7 +8,6 @@
 
 #include "device/device.hpp"
 #include "random/random.hpp"
-#include "synchronization/barrier.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp

@@ -26,7 +26,7 @@ namespace XXX_NAMESPACE
 
             virtual std::uint32_t Concurrency() const = 0;
 
-            DeviceName Name() const { return device_name; }
+            constexpr DeviceName Name() const { return device_name; }
 
             std::uint32_t DeviceId() const { return device_id; }
 
@@ -44,5 +44,7 @@ namespace XXX_NAMESPACE
 
 #include "device_cpu.hpp"
 #include "device_amd_gpu.hpp"
+
+#include "helper.hpp"
 
 #undef XXX_NAMESPACE

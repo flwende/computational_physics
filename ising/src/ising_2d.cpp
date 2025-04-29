@@ -81,15 +81,19 @@ int main(int argc, char **argv)
     // Create spin system.
     Lattice<2> lattice({n_0, n_1});
 
+    // Target device.
+    auto target = GetDevice(target_name);
+    std::cout << "Target name: " << (target->Name() == DeviceName::CPU ? "CPU" : "AMD GPU") << std::endl;
+
     // Update kernel: resolve parameters and set up call.
-    auto kernel = [&] (const std::int32_t iterations)
+    auto kernel = [&] <typename DeviceType> (DeviceType& target, const std::int32_t iterations)
         {
             if (rng_name == "lcg32")
             {
                 if (algorithm == "swendsen_wang")
                 {
                     for (std::int32_t i = 0; i < iterations; ++i)
-                        lattice.Update<SwendsenWang_2D, LCG32>(temperature);
+                        lattice.Update<SwendsenWang_2D, LCG32>(temperature, target);
                 }
                 else
                     throw std::runtime_error("Unknown algorithm.");
@@ -99,7 +103,7 @@ int main(int argc, char **argv)
         };
 
     // Thermalization.
-    kernel(n_warmup);
+    DispatchCall(target_name, *target, kernel, n_warmup);
 
     // Measurement.
     double energy = 0.0;
@@ -109,9 +113,13 @@ int main(int argc, char **argv)
         for (std::int32_t i = 0; i < n_sweeps; i += n_sep)
         {
             // Take measurements every n_sep update steps.
-            kernel(n_sep);
+            DispatchCall(target_name, *target, kernel, n_sep);
 
-            auto [e, m] = lattice.GetEnergyAndMagnetization();
+            auto [e, m] = DispatchCall(target_name, *target, [&lattice] (auto& target)
+                {
+                    return lattice.GetEnergyAndMagnetization(target);
+                });
+
             energy += e;
             magnetization += m;
         }

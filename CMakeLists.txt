@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10.0)
 
 project(ComputationalPhysics)
 
-set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD 20)
 
 add_compile_options(-march=native -Wall -Wno-ignored-attributes)
 

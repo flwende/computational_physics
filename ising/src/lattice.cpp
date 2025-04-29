@@ -27,16 +27,13 @@ namespace XXX_NAMESPACE
 
     template <>
     template <>
-    std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<DeviceName::CPU>()
+    std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<CPU>(CPU& cpu)
     {
         const std::int32_t n_0 = extent[0];
         const std::int32_t n_1 = extent[1];
 
         std::atomic<std::int64_t> energy{0};
         std::atomic<std::int64_t> magnetization{0};
-        
-        // Create thread group if not done already.
-        CreateThreadGroup();
 
         auto kernel = [&, this] (ThreadContext& context)
             {
@@ -64,10 +61,19 @@ namespace XXX_NAMESPACE
                 magnetization += m;
             };
 
-        thread_group->Execute(kernel);
+        cpu.Execute(kernel);
 
         return {-1.0 * energy / num_sites, 1.0 * magnetization / num_sites};
     }
+
+#if defined __HIPCC__
+    template <>
+    template <>
+    std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<AMD_GPU>(AMD_GPU& gpu)
+    {
+        return {1.0, 0.0};
+    }
+#endif
 
     template class Lattice<2>;
 }

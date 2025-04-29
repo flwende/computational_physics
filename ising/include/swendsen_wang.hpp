@@ -5,10 +5,9 @@
 #include <vector>
 
 #include "array/multi_dimensional_array.hpp"
-#include "thread_group/thread_group.hpp"
 #include "atomic/atomic.hpp"
-#include "simd/simd.hpp"
 #include "random/random.hpp"
+#include "simd/simd.hpp"
 #include "lattice_mc.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -17,8 +16,6 @@
 
 namespace XXX_NAMESPACE
 {
-    //using RNG = LCG32<DeviceName::CPU>;
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Swendsen Wang multi-cluster algorithm for the 2-dimensional Ising model.
     //
@@ -37,8 +34,10 @@ namespace XXX_NAMESPACE
         // Set to std::uint64_t if more then 4 billion labels.
         using LabelType = std::uint32_t;
 
+        using DeviceType = typename Device<Target>::Type;
+
         public:
-            SwendsenWang_2D(ThreadGroup& thread_group);
+            SwendsenWang_2D(DeviceType& target);
 
             // Sweep (update the entire lattice).
             // Each update comprises calling the following methods:
@@ -61,31 +60,29 @@ namespace XXX_NAMESPACE
         protected:
             // Connected component labeling (ccl) based on an idea of Coddington and Baillie within tiles.
             template <std::int32_t N_0 = 0>
-            void CCL_SelfLabeling(ThreadContext& context, Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub);
+            void CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub);
 
             // Loop over all tiles of the lattice and apply ccl_selflabeling.
             // Parameter p_add is the probability for adding aligned nearest
             // neighbor sites to a cluster.
-            void AssignLabels(ThreadContext& context, Lattice<2>& lattice, const float p_add);
+            void AssignLabels(Context& context, Lattice<2>& lattice, const float p_add);
 
             // Connect all tiles.
             // Parameter p_add is the probability for adding aligned nearest
             // neighbor sites to the cluster.
-            void MergeLabels(ThreadContext& context, Lattice<2>& lattice, const float p_add);
+            void MergeLabels(Context& context, Lattice<2>& lattice, const float p_add);
 
             // Helper method to establish label equivalences, thus merging clusters
             void Merge(LabelType* ptr, LabelType a, LabelType b);
 
-            void Foo(ThreadContext&, Lattice<2>& lattice, const float) { /**/ }
-
             // Resolve all label equivalences.
-            void ResolveLabels(ThreadContext& context);
+            void ResolveLabels(Context& context);
 
             // Flip clusters.
-            void FlipClusters(ThreadContext& context, Lattice<2>& lattice);
+            void FlipClusters(Context& context, Lattice<2>& lattice);
 
             // Multi-threading: reuse threads throughout MC updates.
-            ThreadGroup& thread_group;
+            DeviceType& target;
 
             // Cluster: the largest possible label is 0xFFFFFFFF
             MultiDimensionalArray<LabelType, 2> cluster;

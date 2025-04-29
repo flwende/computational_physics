@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cmath>
-#include <omp.h>
 
 #include "environment/environment.hpp"
 #include "swendsen_wang.hpp"
@@ -12,11 +11,11 @@
 namespace XXX_NAMESPACE
 {
     template <template <DeviceName> typename RNG, DeviceName Target>
-    SwendsenWang_2D<RNG, Target>::SwendsenWang_2D(ThreadGroup& thread_group)
+    SwendsenWang_2D<RNG, Target>::SwendsenWang_2D(DeviceType& target)
         :
-        thread_group(thread_group)
+        target(target)
     {
-        const std::int32_t num_threads = thread_group.Size();
+        const std::int32_t num_threads = target.Concurrency();
 
         rng.reserve(num_threads);
         for (std::int32_t i = 0; i < num_threads; ++i)
@@ -32,7 +31,7 @@ namespace XXX_NAMESPACE
         // Probability for adding aligned neighboring sites to the cluster.
         const float p_add = 1.0f - static_cast<float>(std::exp(-2.0f / temperature));
 
-        thread_group.Execute([&,this] (ThreadContext& context, auto&&... args)
+        target.Execute([this] (ThreadContext& context, auto&&... args)
             {
                 AssignLabels(context, args...);
                 context.Synchronize();
@@ -40,16 +39,17 @@ namespace XXX_NAMESPACE
             },
             std::ref(lattice), p_add);
 
-        thread_group.Execute([&,this] (auto&&... args) { ResolveLabels(args...); });
+        target.Execute([this] (auto&&... args) { ResolveLabels(args...); });
 
-        thread_group.Execute([&,this] (auto&&... args) { FlipClusters(args...); }, std::ref(lattice));
+        target.Execute([this] (auto&&... args) { FlipClusters(args...); }, std::ref(lattice));
     }
 
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::AssignLabels(ThreadContext& context, Lattice<2>& lattice, const float p_add)
+    void SwendsenWang_2D<RNG, Target>::AssignLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
-        const std::int32_t thread_id = context.ThreadId();
-        const std::int32_t num_threads = context.NumThreads();
+        auto& thread_group = static_cast<ThreadContext&>(context);
+        const std::int32_t thread_id = thread_group.ThreadId();
+        const std::int32_t num_threads = thread_group.NumThreads();
 
         const std::int32_t extent_0 = lattice.Extent()[0];
         const std::int32_t extent_1 = lattice.Extent()[1];
@@ -82,10 +82,11 @@ namespace XXX_NAMESPACE
     }
 
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::MergeLabels(ThreadContext& context, Lattice<2>& lattice, const float p_add)
+    void SwendsenWang_2D<RNG, Target>::MergeLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
-        const std::int32_t thread_id = context.ThreadId();
-        const std::int32_t num_threads = context.NumThreads();
+        auto& thread_group = static_cast<ThreadContext&>(context);
+        const std::int32_t thread_id = thread_group.ThreadId();
+        const std::int32_t num_threads = thread_group.NumThreads();
 
         const std::int32_t extent_0 = lattice.Extent()[0];
         const std::int32_t extent_1 = lattice.Extent()[1];
@@ -190,10 +191,11 @@ namespace XXX_NAMESPACE
 
     // Resolve all label equivalences
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::ResolveLabels(ThreadContext& context)
+    void SwendsenWang_2D<RNG, Target>::ResolveLabels(Context& context)
     {
-        const std::int32_t threads_id = context.ThreadId();
-        const std::int32_t num_threads = context.NumThreads();
+        auto& thread_group = static_cast<ThreadContext&>(context);
+        const std::int32_t threads_id = thread_group.ThreadId();
+        const std::int32_t num_threads = thread_group.NumThreads();
 
         const std::size_t num_sites = cluster.Extent()[0] * cluster.Extent()[1];
         const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
@@ -217,10 +219,11 @@ namespace XXX_NAMESPACE
     // We thus flip a cluster only if X is odd, that is, if (X & 0x1) is equal to 0x1.
     // Flipping is implemented via a bitwise XOR operation.
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::FlipClusters(ThreadContext& context, Lattice<2>& lattice)
+    void SwendsenWang_2D<RNG, Target>::FlipClusters(Context& context, Lattice<2>& lattice)
     {
-        const std::int32_t threads_id = context.ThreadId();
-        const std::int32_t num_threads = context.NumThreads();
+        auto& thread_group = static_cast<ThreadContext&>(context);
+        const std::int32_t threads_id = thread_group.ThreadId();
+        const std::int32_t num_threads = thread_group.NumThreads();
 
         const std::size_t num_sites = lattice.NumSites();
         const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
