@@ -16,18 +16,14 @@
 
 using namespace XXX_NAMESPACE;
 
-// We can use a LockFreeBarrier here: master + worker thread.
-static LockFreeBarrier barrier(2);
-
 // This value should be equal to the wavefront size of the GPU.
-constexpr std::int32_t Buffersize{AMD_GPU::WavefrontSize<std::uint32_t>()};
+constexpr std::int32_t Buffersize {AMD_GPU::WavefrontSize<std::uint32_t>()};
 
 // Dynamic shared memory for GPU kernels.
 extern __shared__ std::byte shared_memory[];
 
 template <std::int32_t N>
-__host__
-__device__
+__host__ __device__
 std::int32_t Ceil(const std::int32_t value)
 {
     return ((value + N - 1) / N) * N;
@@ -37,7 +33,7 @@ template <typename RngState>
 __device__
 RngState* LoadRngState(const RngState* rng_state)
 {
-    RngState* shared_rng_state = reinterpret_cast<RngState*>(shared_memory + blockIdx.x * Ceil<64>(sizeof(RngState)));
+    RngState* shared_rng_state = reinterpret_cast<RngState*>(shared_memory);
     shared_rng_state->Load(rng_state[blockIdx.x]);
     return shared_rng_state;
 }
@@ -72,19 +68,21 @@ void Kernel(RngState* rng_state, float* output, const std::int32_t iterations)
 }
 
 template <template <DeviceName> typename RNG, DeviceName Target>
-void BenchmarkImpl(std::vector<float>& output, const std::pair<std::size_t, std::size_t>& iterations, const std::int32_t reporting_id)
+std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations)
 {
-    using RngState = typename RNG<Target>::State;
-        
-    const typename Device<Target>::Type target;
-    const std::uint32_t num_thread_blocks = target.Concurrency();
+    static_assert(Target == DeviceName::AMD_GPU, "Target must be AMD_GPU.");
+
+    AMD_GPU gpu;
+    const std::uint32_t num_thread_blocks = gpu.Concurrency();
+
+    SafeCall(hipSetDevice(gpu.DeviceId()));
+
+    // Allocate RNG state on the host.
+    using RngState = typename RNG<DeviceName::AMD_GPU>::State;
     std::vector<RngState> host_rng_state(num_thread_blocks);
     for (std::int32_t i = 0; i < num_thread_blocks; ++i)
         host_rng_state[i].Init(i + 1);
 
-    SafeCall(hipSetDevice(target.DeviceID()));
-
-    // Allocate GPU resources.
     GpuPointer<RngState> gpu_rng_state;
     {
         RngState* ptr{};
@@ -101,46 +99,34 @@ void BenchmarkImpl(std::vector<float>& output, const std::pair<std::size_t, std:
     }
 
     // Configure kernel launch.
-    const dim3 grid{num_thread_blocks, 1, 1};
-    const dim3 block{AMD_GPU::WavefrontSize<std::uint32_t>(), 1, 1};
-    const std::size_t shared_mem_bytes = num_thread_blocks * Ceil<64>(sizeof(RngState));
+    const dim3 grid {num_thread_blocks, 1, 1};
+    const dim3 block {AMD_GPU::WavefrontSize<std::uint32_t>(), 1, 1};
+    const std::size_t shared_mem_bytes = sizeof(RngState); // Per thread block.
 
-    // Warmup run.
-    const auto [warmup_iterations, benchmark_iterations] = iterations;
-    Kernel<<<grid, block, shared_mem_bytes>>>(gpu_rng_state.get(), gpu_random_numbers.get(),
-        (warmup_iterations + (num_thread_blocks * Buffersize - 1)) / (num_thread_blocks * Buffersize));
+    // Warmup.
+    gpu.Execute([&] (auto& context)
+        {
+            const auto [warmup_iterations, _] = iterations;
+            Kernel<RngState><<<grid, block, shared_mem_bytes>>>(gpu_rng_state.get(), gpu_random_numbers.get(),
+                (warmup_iterations + (num_thread_blocks * Buffersize - 1)) / (num_thread_blocks * Buffersize));
 
-    SafeCall(hipDeviceSynchronize());
+            context.Synchronize();
+        });
 
-    // Synchronize with the master thread before starting the Kernel loop (benchmark run).
-    barrier.Wait();
-
-    Kernel<<<grid, block, shared_mem_bytes>>>(gpu_rng_state.get(), gpu_random_numbers.get(),
-        (benchmark_iterations + (num_thread_blocks * Buffersize - 1)) / (num_thread_blocks * Buffersize));
-
-    SafeCall(hipDeviceSynchronize());
-
-    // Signal back to the master thread.
-    barrier.Wait();
-
-    // Extract random numbers from the GPU.
-    SafeCall(hipMemcpy(output.data(), gpu_random_numbers.get() + reporting_id * Buffersize, Buffersize * sizeof(float), hipMemcpyDeviceToHost));
-}
-
-template <template <DeviceName> typename RNG, DeviceName Target>
-std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations)
-{
-    std::vector<float> random_numbers(Buffersize);
-    std::thread worker = std::thread(BenchmarkImpl<RNG, Target>, std::ref(random_numbers), std::ref(iterations), reporting_id);
-
-    // Synchronize with threads in the Kernel kernel.
-    barrier.Wait();
+    // Benchmark.
+    const auto [_, benchmark_iterations] = iterations;
     const auto starttime = std::chrono::high_resolution_clock::now();
-    barrier.Wait();
+    {
+        gpu.Execute(Kernel<RngState>, grid, block, shared_mem_bytes,
+            gpu_rng_state.get(), gpu_random_numbers.get(),
+            (benchmark_iterations + (num_thread_blocks * Buffersize - 1)) / (num_thread_blocks * Buffersize));
+    }
     const auto endtime = std::chrono::high_resolution_clock::now();
     const double elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-6;
 
-    worker.join();
+    // Extract random numbers from the GPU.
+    std::vector<float> random_numbers(Buffersize);
+    SafeCall(hipMemcpy(random_numbers.data(), gpu_random_numbers.get() + reporting_id * Buffersize, Buffersize * sizeof(float), hipMemcpyDeviceToHost));
 
     return {elapsed_time_s, random_numbers};
 }

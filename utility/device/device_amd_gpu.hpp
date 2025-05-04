@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "environment/environment.hpp"
 #include "hip/hip.hpp"
 
@@ -21,7 +23,8 @@ namespace XXX_NAMESPACE
             AMD_GPU(const std::uint32_t concurrency, const std::uint32_t device_id)
                 :
                 AbstractDevice(DeviceName::AMD_GPU, device_id),
-                concurrency(concurrency)
+                concurrency(concurrency),
+                context(1 /* number of GPUs */, device_id, *this)
             {}
 
             bool IsOffloadDevice() const override { return true; }
@@ -33,8 +36,31 @@ namespace XXX_NAMESPACE
             template <typename T>
             static constexpr std::int32_t WavefrontSize() { return 64; }
 
+            template <typename Func, typename ...Args>
+            void Execute(Func&& func, const dim3& grid, const dim3& block, const std::size_t shared_mem_bytes,
+                Args&&... args)
+            {
+                SafeCall(hipSetDevice(DeviceId()));
+                hipLaunchKernelGGL(func, grid, block, shared_mem_bytes, 0, std::forward<Args>(args)...);
+                Synchronize();
+            }
+
+            template <typename Func, typename ...Args>
+            void Execute(Func&& func, Args&&... args)
+            {
+                SafeCall(hipSetDevice(DeviceId()));
+                func(context, std::forward<Args>(args)...);
+                Synchronize();
+            }
+
+            void Synchronize()
+            {
+                context.Synchronize();
+            }
+
         private:
             const std::uint32_t concurrency;
+            HipContext context;
     };
 
     template <>

@@ -1,8 +1,11 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <thread>
 
 #include "environment/environment.hpp"
+#include "thread_group/thread_group.hpp"
 #include "simd/simd.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -19,7 +22,8 @@ namespace XXX_NAMESPACE
             CPU(const std::uint32_t concurrency, const std::uint32_t device_id)
                 :
                 AbstractDevice(DeviceName::CPU, device_id),
-                concurrency(concurrency)
+                concurrency(concurrency),
+                thread_group(concurrency)
             {}
 
             bool IsOffloadDevice() const override { return false; }
@@ -31,8 +35,20 @@ namespace XXX_NAMESPACE
             template <typename T>
             static constexpr std::int32_t WavefrontSize() { return simd::Type<T>::width; }
 
+            template <typename Func, typename ...Args>
+            void Execute(Func&& func, Args&&... args)
+            {
+                thread_group.Execute(std::forward<Func>(func), std::forward<Args>(args)...);
+            }
+
+            void Synchronize()
+            {
+                thread_group.Synchronize();
+            }
+
         private:
             const std::uint32_t concurrency;
+            ThreadGroup thread_group;
     };
 
     template <>

@@ -7,6 +7,7 @@
 #include <vector>
 #include <sched.h>
 
+#include "context.hpp"
 #include "synchronization/barrier.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -15,23 +16,21 @@
 
 namespace XXX_NAMESPACE
 {
-    class ThreadContext final
+    class ThreadContext final : public Context
     {
         public:
-            ThreadContext(const std::int32_t num_threads, const std::int32_t thread_id, LockFreeBarrier& barrier)
+            ThreadContext(const std::int32_t group_size, const std::int32_t id, LockFreeBarrier& barrier)
                 :
-                num_threads(num_threads),
-                thread_id(thread_id),
+                Context(group_size, id),
                 barrier(barrier)
             {}
 
-            const std::int32_t NumThreads() const { return num_threads; }
-            const std::int32_t ThreadId() const { return thread_id; }
-            void Synchronize() { barrier.Wait(); }
+            const std::int32_t NumThreads() const { return GroupSize(); }
+            const std::int32_t ThreadId() const { return Id(); }
+
+            void Synchronize() override { barrier.Wait(); }
         
         private:
-            const std::int32_t num_threads;
-            const std::int32_t thread_id;
             LockFreeBarrier& barrier;
     };
 
@@ -87,6 +86,8 @@ namespace XXX_NAMESPACE
 
                 task_done.Wait();
             }
+
+            void Synchronize() { task_done.Wait(); }
 
         protected:
             void Run(const std::int32_t thread_id)

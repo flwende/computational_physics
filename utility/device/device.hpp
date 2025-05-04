@@ -28,7 +28,7 @@ namespace XXX_NAMESPACE
 
             DeviceName Name() const { return device_name; }
 
-            std::uint32_t DeviceID() const { return device_id; }
+            std::uint32_t DeviceId() const { return device_id; }
 
         protected:
             AbstractDevice(const DeviceName device_name, const std::uint32_t device_id)

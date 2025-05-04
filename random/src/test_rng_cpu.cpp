@@ -6,7 +6,6 @@
 
 #include "device/device.hpp"
 #include "random/random.hpp"
-#include "synchronization/barrier.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -14,66 +13,54 @@
 
 using namespace XXX_NAMESPACE;
 
-// Don't use LockFreeBarrier as we have 1 additional observer thread which would spin on the barrier.
-static Barrier barrier;
-
 constexpr std::int32_t Buffersize {64};
 
-template <typename RNG>
-void Kernel(RNG& rng, std::vector<float>& output, const std::pair<std::size_t, std::size_t>& iterations, const bool write_back)
+namespace
 {
-    const auto [warmup_iterations, benchmark_iterations] = iterations;
-    std::vector<float> random_numbers(Buffersize);
+    template <typename RNG>
+    void Kernel(RNG& rng, std::vector<float>& output, const std::size_t iterations, const bool write_back = false)
+    {
+        std::vector<float> random_numbers(Buffersize);
 
-    // WarmupIterations.
-    for (std::size_t i = 0; i < (warmup_iterations / Buffersize); ++i)
-        rng.NextReal(random_numbers);
+        for (std::size_t i = 0; i < (iterations / Buffersize); ++i)
+            rng.NextReal(random_numbers);
 
-    // Synchronize with all other threads before starting
-    // the Kernel loop.
-    barrier.Wait();
-
-    // Kernel.
-    for (std::size_t i = 0; i < (benchmark_iterations / Buffersize); ++i)
-        rng.NextReal(random_numbers);
-
-    // Wait for all other threads.
-    barrier.Wait();
-
-    if (write_back)
-        output.swap(random_numbers);
+        if (write_back)
+            output.swap(random_numbers);
+    }
 }
 
 template <template <DeviceName> typename RNG, DeviceName Target>
 std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations)
 {
-    const typename Device<Target>::Type target;
-    const std::int32_t num_threads = target.Concurrency();
-    barrier.Reset(num_threads + 1);
+    static_assert(Target == DeviceName::CPU, "Target must be CPU.");
 
-    std::vector<RNG<Target>> rng;
-    rng.reserve(num_threads);
-    for (std::int32_t i = 0; i < num_threads; ++i)
-       rng.emplace_back(i + 1);
-
-    const auto [warmup_iterations, benchmark_iterations] = iterations;
+    CPU cpu;
     std::vector<float> random_numbers(Buffersize);
-    std::vector<std::thread> threads;
-    threads.reserve(num_threads);
-    for (std::int32_t i = 0; i < num_threads; ++i)
-        threads.emplace_back(Kernel<RNG<Target>>, std::ref(rng.at(i)), std::ref(random_numbers),
-            std::make_pair<std::size_t, std::size_t>(warmup_iterations / num_threads, benchmark_iterations / num_threads),
-            i == reporting_id);
+    double elapsed_time_s {};
 
-    // Synchronize with threads in the Kernel kernel.
-    barrier.Wait();
-    const auto starttime = std::chrono::high_resolution_clock::now();
-    barrier.Wait();
-    const auto endtime = std::chrono::high_resolution_clock::now();
-    const double elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-6;
+    cpu.Execute([&] (auto& thread_pool)
+        {
+            const auto [warmup_iterations, benchmark_iterations] = iterations;
+            const auto thread_id = thread_pool.ThreadId();
+            const auto num_threads = cpu.Concurrency();
+            RNG<DeviceName::CPU> rng(thread_id + 1);
 
-    for (auto& thread : threads)
-        thread.join();
+            // Warmup.
+            Kernel<RNG<DeviceName::CPU>>(rng, random_numbers, warmup_iterations / num_threads);
+
+            thread_pool.Synchronize();
+            const auto starttime = std::chrono::high_resolution_clock::now();
+
+            // Benchmark.
+            Kernel<RNG<DeviceName::CPU>>(rng, random_numbers, benchmark_iterations / num_threads, thread_id == reporting_id);
+
+            thread_pool.Synchronize();
+            const auto endtime = std::chrono::high_resolution_clock::now();
+
+            if (thread_id == 0)
+                elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-6;
+        });
 
     return {elapsed_time_s, random_numbers};
 }
