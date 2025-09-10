@@ -65,6 +65,8 @@ namespace XXX_NAMESPACE
 
             LCG32(std::uint32_t seed = 1);
 
+            LCG32(State& state);
+
             void Init(const std::uint32_t seed = 1) override;
 
             std::uint32_t NextInteger() override;
@@ -89,7 +91,7 @@ namespace XXX_NAMESPACE
             State state;
 
             // Current element in the buffer to be accessed next.
-            std::int32_t current;
+            std::int32_t current {0};
     };
 
 #if defined __HIPCC__

@@ -41,8 +41,6 @@ namespace XXX_NAMESPACE
     template <std::int32_t N_0>
     void SwendsenWang_2D<RNG, Target>::CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub)
     {
-        static_assert(Target == DeviceName::CPU, "CCL_SelfLabeling is only implemented for CPU target.");
-
         auto& thread_group = static_cast<ThreadContext&>(context);
         const std::uint32_t thread_id = thread_group.ThreadId();
 

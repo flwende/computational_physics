@@ -27,14 +27,18 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     class SwendsenWang_2D : public LatticeMonteCarloAlgorithm<2, RNG, Target>
     {
-        // Tile size for parallel processing: the innermost dimension should be a
-        // multiple of the SIMD width of the target platform.
-        static constexpr std::int32_t chunk[2] = {simd::Type<std::uint32_t>::width, 8};
-
         // Set to std::uint64_t if more then 4 billion labels.
         using LabelType = std::uint32_t;
 
         using DeviceType = typename Device<Target>::Type;
+
+        static constexpr std::int32_t WavefrontSize = DeviceType::template WavefrontSize<LabelType>();
+        static constexpr std::int32_t Chunk_1 = 8;
+        static constexpr std::int32_t Chunk_0 = (Target == DeviceName::CPU ? WavefrontSize : WavefrontSize / Chunk_1);
+
+        // Tile size for parallel processing: the innermost dimension should be a
+        // multiple of the SIMD width of the target platform.
+        static constexpr std::int32_t chunk[2] = {Chunk_0, Chunk_1};
 
         public:
             SwendsenWang_2D(DeviceType& target);
@@ -89,7 +93,17 @@ namespace XXX_NAMESPACE
 
             // Random number generator: if you use the lcg32 generator, make sure you are
             // compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers are too bad)
+            using RngState = typename RNG<Target>::State;
+            std::vector<RngState> rng_state;
             std::vector<std::shared_ptr<RandomNumberGenerator>> rng;
+
+#if defined __HIPCC__
+            GpuPointer<RngState> gpu_rng_state;
+            void InitializeGpuRngState();
+
+            GpuPointer<LabelType> gpu_cluster;
+            void InitializeGpuCluster(const LabelType num_sites);
+#endif
     };
 }
 

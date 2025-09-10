@@ -94,6 +94,11 @@ namespace XXX_NAMESPACE
         state(seed)
     {}
 
+    LCG32<DeviceName::CPU>::LCG32(State& state)
+        :
+        state(state)
+    {}
+
     void LCG32<DeviceName::CPU>::Init(const std::uint32_t seed)
     {
         state.Init(seed);
@@ -144,6 +149,7 @@ namespace XXX_NAMESPACE
             ptr[i] = 2.3283064370807974e-10f * i_ptr[i];
     }
 
+    template class LCG32_State<CPU::WavefrontSize<std::uint32_t>()>;
 #if defined __HIPCC__
     template class LCG32_State<AMD_GPU::WavefrontSize<std::uint32_t>()>;
 #endif

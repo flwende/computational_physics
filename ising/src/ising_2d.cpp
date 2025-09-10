@@ -12,8 +12,10 @@
 
 using namespace XXX_NAMESPACE;
 
-static constexpr std::int32_t n_warmup = 1000;
+//static constexpr std::int32_t n_warmup = 1000;
+static constexpr std::int32_t n_warmup = 1;
 static constexpr std::int32_t n_sep = 20;
+//static constexpr std::int32_t n_sep = 1;
 
 namespace defaults
 {
@@ -102,6 +104,9 @@ int main(int argc, char **argv)
                 throw std::runtime_error("Unknown RNG name.");
         };
 
+    std::cout << "WARMUP: " << n_warmup << " sweeps" << std::endl;
+    std::cout << "MEASUREMENT: " << n_sweeps << " sweeps" << std::endl;
+
     // Thermalization.
     DispatchCall(target_name, *target, kernel, n_warmup);
 
@@ -114,7 +119,7 @@ int main(int argc, char **argv)
         {
             // Take measurements every n_sep update steps.
             DispatchCall(target_name, *target, kernel, n_sep);
-
+            
             auto [e, m] = DispatchCall(target_name, *target, [&lattice] (auto& target)
                 {
                     return lattice.GetEnergyAndMagnetization(target);

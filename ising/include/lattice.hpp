@@ -21,7 +21,8 @@ namespace XXX_NAMESPACE
     template <std::int32_t Dimension>
     class Lattice final
     {
-        using Spin = std::uint8_t;
+        public:
+            using Spin = std::uint8_t;
 
         public:
             Lattice(const std::array<std::int32_t, Dimension>& extent);
@@ -42,11 +43,11 @@ namespace XXX_NAMESPACE
                 std::derived_from<StrategyImplementation, LatticeMonteCarloAlgorithm<Dimension, RNG, Target::Name()>>
             void Update(const float temperature, Target& target)
             {
-                if constexpr (Target::Name() == DeviceName::CPU)
-                {
-                    static StrategyImplementation strategy(target);
-                    strategy.Update(*this, temperature);
-                }
+                if constexpr (Target::Name() == DeviceName::AMD_GPU)
+                    InitializeGpuSpins(target);
+                
+                static StrategyImplementation strategy(target);
+                strategy.Update(*this, temperature);
             }
 
             template <template <template <DeviceName> typename, DeviceName> typename Strategy,
@@ -66,6 +67,11 @@ namespace XXX_NAMESPACE
                 return GetEnergyAndMagnetization(GetDevice<Target>());
             }
 
+#if defined __HIPCC__
+            auto RawGpuPointer() { return gpu_spins.get(); }
+            auto RawGpuPointer() const { return gpu_spins.get(); }
+#endif
+
         protected:
             // Return target device using defaults.
             template <DeviceName Target = DeviceName::CPU>
@@ -79,6 +85,11 @@ namespace XXX_NAMESPACE
             const std::array<std::int32_t, Dimension> extent;
             const std::size_t num_sites;
             MultiDimensionalArray<Spin, Dimension> spins;
+
+#if defined __HIPCC__
+            GpuPointer<Spin> gpu_spins;
+            void InitializeGpuSpins(AMD_GPU& gpu);
+#endif
     };
 }
 

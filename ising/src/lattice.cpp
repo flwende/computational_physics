@@ -73,6 +73,23 @@ namespace XXX_NAMESPACE
     {
         return {1.0, 0.0};
     }
+
+    template <>
+    void Lattice<2>::InitializeGpuSpins(AMD_GPU& gpu)
+    {
+        if (!gpu_spins.get())
+        {
+            std::cout << "Initializing GPU spins .. ";
+
+            Spin* ptr{};
+            SafeCall(hipSetDevice(gpu.DeviceId()));
+            SafeCall(hipMalloc(&ptr, num_sites * sizeof(Spin)));
+            SafeCall(hipMemcpy(ptr, spins.RawPointer(), num_sites * sizeof(Spin), hipMemcpyHostToDevice));
+            gpu_spins.reset(ptr);
+
+            std::cout << "Done." << std::endl;
+        }
+    }
 #endif
 
     template class Lattice<2>;
