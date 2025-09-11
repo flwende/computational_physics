@@ -92,8 +92,6 @@ namespace XXX_NAMESPACE
             return properties.textureAlignment;
         else if (property == "texturePitchAlignment")
             return properties.texturePitchAlignment;
-        else if (property == "gcnArch")
-            return properties.gcnArch;
         else
             throw std::runtime_error("Unknown property: " + property);
     }
