@@ -75,24 +75,24 @@ namespace XXX_NAMESPACE
             void Reset(const std::int32_t new_expected)
             {   
                 // This does not conflict with the implementation of 'Wait()'.
-                expected = new_expected;
-                value = 0;
-                ++epoch;
+                expected.store(new_expected, std::memory_order_release);
+                value.store(0, std::memory_order_release);
+                epoch.fetch_add(1, std::memory_order_acq_rel);
             }
             
             void Wait()
-            {                
+            {
                 // Make a copy of 'epoch' and wait for it to change.
-                const std::uint32_t current_epoch = epoch;
+                const std::uint32_t current_epoch = epoch.load(std::memory_order_acquire);
 
-                if (++value == expected)
+                if (value.fetch_add(1, std::memory_order_acq_rel) == (expected - 1))
                 {
-                    value = 0;
-                    ++epoch;
+                    value.store(0, std::memory_order_release);
+                    epoch.fetch_add(1, std::memory_order_acq_rel);
                 }
                 else
                 {
-                    while (epoch == current_epoch)
+                    while (epoch.load(std::memory_order_acquire) == current_epoch)
                         std::this_thread::yield();
                 }
             }
