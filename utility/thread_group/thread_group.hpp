@@ -19,7 +19,7 @@ namespace XXX_NAMESPACE
     class ThreadContext final : public Context
     {
         public:
-            ThreadContext(const std::int32_t group_size, const std::int32_t id, LockFreeBarrier& barrier)
+            ThreadContext(const std::int32_t group_size, const std::int32_t id, Barrier& barrier)
                 :
                 Context(group_size, id),
                 barrier(barrier)
@@ -31,7 +31,7 @@ namespace XXX_NAMESPACE
             void Synchronize() override { barrier.Wait(); }
         
         private:
-            LockFreeBarrier& barrier;
+            Barrier& barrier;
     };
 
     class ThreadGroup
@@ -120,9 +120,9 @@ namespace XXX_NAMESPACE
 
             std::atomic<bool> active{false};
             std::int32_t num_threads;
-            LockFreeBarrier new_task;
-            LockFreeBarrier task_done;
-            LockFreeBarrier barrier;
+            Barrier new_task;
+            Barrier task_done;
+            Barrier barrier;
             std::vector<std::thread> threads;
             std::function<void(ThreadContext&)> kernel;
     };

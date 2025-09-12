@@ -1,9 +1,12 @@
 #pragma once
 
 #include <atomic>
+#include <cassert>
 #include <cstdint>
 #include <condition_variable>
 #include <thread>
+
+#include "environment/environment.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -13,82 +16,106 @@ namespace XXX_NAMESPACE
 {
     class Barrier final
     {
+        std::atomic<std::uint32_t> expected {1}, value {0}, epoch {0}, active_waiters {0};
+        std::atomic<bool> allow_entry {true};
+        void (Barrier::* implementation)() {};
+        const std::uint32_t hardware_threads;
+        std::condition_variable cv;
+        std::mutex cv_mutex;
+
         public:
-            Barrier(const std::int32_t expected = 1)
+            Barrier(const std::uint32_t expected = 1)
+                :
+                hardware_threads{GetEnv("NUM_THREADS", std::thread::hardware_concurrency())}
             {
                 Reset(expected);
             }
 
             void Reset(const std::int32_t new_expected)
-            {   
-                std::unique_lock<std::mutex> lock(cv_mutex);
+            {
+                assert(new_expected > 0 && "Barrier::expected must be > 0.");
 
-                // Reset the state.
-                value = 0;
-                expected = new_expected;
+                // Gate: no new threads are allowed to enter the barrier.
+                allow_entry.store(false, std::memory_order_release);
+                {
+                    // Wait for active waiters to finish.
+                    while (active_waiters.load(std::memory_order_acquire))
+                        std::this_thread::yield();
 
-                // Move forward to the next epoch and unblock all waiting threads.
-                ++epoch;
-                cv.notify_all();            
+                    // No thread(s) waiting. Update 'expected', 'value' and 'epoch'.
+                    expected.store(new_expected, std::memory_order_relaxed);
+                    value.store(0, std::memory_order_relaxed);
+                    epoch.fetch_add(1, std::memory_order_release);
+
+                    // Update 'implementation'.
+                    implementation = (expected > hardware_threads ? &Barrier::CvWait : &Barrier::BusyWait);
+                }
+                allow_entry.store(true, std::memory_order_release);
             }
             
             void Wait()
             {
-                std::unique_lock<std::mutex> lock(cv_mutex);
-                
-                if (++value == expected)
+                while (true)
                 {
-                    value = 0;
-                    // All waiting threads will use a value of 'epoch' that is 1
-                    // this new value. This guarantees that this thread will wait at
-                    // the barrier in the next round if the barrier is reached again
-                    // immediately after notify_all.
-                    ++epoch;
+                    // Wait while Reset is happening.
+                    while (!allow_entry.load(std::memory_order_acquire))
+                        std::this_thread::yield();
+
+                    // Indicate this thread attempts to enter the barrier.
+                    active_waiters.fetch_add(1, std::memory_order_acq_rel);
+
+                    // Check gate again: if Reset started between the load and the increment, undo and retry.
+                    if (allow_entry.load(std::memory_order_acquire))
+                        break;
+
+                    active_waiters.fetch_sub(1, std::memory_order_acq_rel);
+                }
+
+                assert(implementation && "Barrier::implementation not set.");
+
+                (this->*implementation)();
+
+                active_waiters.fetch_sub(1, std::memory_order_acq_rel);
+            }
+
+            // Special semantics, e.g., for master-worker pattern, or to let other threads know this thread
+            // reached the barrier.
+            void Signal() { Wait(); }
+
+        private:
+            void CvWait()
+            {
+                std::unique_lock<std::mutex> lock(cv_mutex);
+
+                // The last thread reaching the barrier will update the state and 'epoch'.
+                if (value.fetch_add(1, std::memory_order_acq_rel) == (expected - 1))
+                {
+                    value.store(0, std::memory_order_relaxed);
+                    epoch.fetch_add(1, std::memory_order_release);
                     cv.notify_all();
                 }
                 else
                 {
                     // Make a copy of 'epoch' and wait for it to change.
-                    const std::uint32_t current_epoch = epoch;
-                    cv.wait(lock, [this, current_epoch] () { return epoch != current_epoch; });
+                    cv.wait(lock, [this, current_epoch = epoch.load(std::memory_order_acquire)] ()
+                        {
+                            return epoch.load(std::memory_order_acquire) != current_epoch;
+                        });
                 }
             }
-
-            // Special semantics, e.g., for master-worker pattern.
-            void Signal() { Wait(); }
             
-        private:
-            std::uint32_t expected{1};
-            std::atomic<std::uint32_t> value{0}, epoch{0};
-            std::condition_variable cv;
-            std::mutex cv_mutex;
-    };
-
-    class LockFreeBarrier final
-    {
-        public:
-            LockFreeBarrier(const std::int32_t expected = 1)
-            {
-                Reset(expected);
-            }
-
-            void Reset(const std::int32_t new_expected)
-            {   
-                // This does not conflict with the implementation of 'Wait()'.
-                expected.store(new_expected, std::memory_order_release);
-                value.store(0, std::memory_order_release);
-                epoch.fetch_add(1, std::memory_order_acq_rel);
-            }
-            
-            void Wait()
+            // Use this method only if the number of hardware threads is lower than or equal to 'expected'.
+            // Otherwise, busy waiting threads will compete with running threads for CPU cycles.
+            void BusyWait()
             {
                 // Make a copy of 'epoch' and wait for it to change.
                 const std::uint32_t current_epoch = epoch.load(std::memory_order_acquire);
 
+                // The last thread reaching the barrier will update the state and 'epoch'.
                 if (value.fetch_add(1, std::memory_order_acq_rel) == (expected - 1))
                 {
-                    value.store(0, std::memory_order_release);
-                    epoch.fetch_add(1, std::memory_order_acq_rel);
+                    value.store(0, std::memory_order_relaxed);
+                    epoch.fetch_add(1, std::memory_order_release);
                 }
                 else
                 {
@@ -96,11 +123,5 @@ namespace XXX_NAMESPACE
                         std::this_thread::yield();
                 }
             }
-
-            // Special semantics, e.g., for master-worker pattern.
-            void Signal() { Wait(); }
-            
-        private:
-            std::atomic<std::uint32_t> expected{1}, value{0}, epoch{0};
     };
 }

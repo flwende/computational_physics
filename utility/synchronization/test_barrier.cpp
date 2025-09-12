@@ -12,8 +12,7 @@
 
 using namespace XXX_NAMESPACE;
 
-//static Barrier barrier;
-static LockFreeBarrier barrier;
+static Barrier barrier;
 
 int main(int argc, char** argv)
 {
