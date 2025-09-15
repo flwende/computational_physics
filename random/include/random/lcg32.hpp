@@ -98,7 +98,7 @@ namespace XXX_NAMESPACE
     template <>
     class alignas(128) LCG32<DeviceName::AMD_GPU> : public RandomNumberGenerator
     {
-        static constexpr std::int32_t WaveFrontSize = AMD_GPU::WavefrontSize<std::uint32_t>();
+        static constexpr std::int32_t WaveFrontSize = AMD_GPU::WavefrontSize();
 
         public:
             using State = LCG32_State<WaveFrontSize>;

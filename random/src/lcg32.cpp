@@ -151,6 +151,6 @@ namespace XXX_NAMESPACE
 
     template class LCG32_State<CPU::WavefrontSize<std::uint32_t>()>;
 #if defined __HIPCC__
-    template class LCG32_State<AMD_GPU::WavefrontSize<std::uint32_t>()>;
+    template class LCG32_State<AMD_GPU::WavefrontSize()>;
 #endif
 }

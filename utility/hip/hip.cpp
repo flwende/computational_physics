@@ -37,7 +37,11 @@ namespace XXX_NAMESPACE
         else if (property == "totalConstMem")
             return properties.totalConstMem;
         else if (property == "multiProcessorCount")
-            return properties.multiProcessorCount;
+            #if defined(__GFX10__) || defined(__GFX11__)
+            return 2 * properties.multiProcessorCount; /* RDNA: meaning is 'workgroup processors' not CUs -> multiply by 2 */
+            #else
+            return properties.multiProcessorCount; /* GCN, CDNA: meaning is CUs */
+            #endif
         else if (property == "maxThreadsPerMultiProcessor")
             return properties.maxThreadsPerMultiProcessor;
         else if (property == "memoryClockRate")

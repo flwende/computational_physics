@@ -17,7 +17,7 @@ namespace XXX_NAMESPACE
         public:
             AMD_GPU(const std::uint32_t device_id = 0) 
                 : 
-                AMD_GPU(GetEnv("NUM_THREADS", HipGetDeviceProperty("multiProcessorCount", device_id)), device_id)
+                AMD_GPU(GetEnv("NUM_THREADS_GPU", HipGetDeviceProperty("multiProcessorCount", device_id)), device_id)
             {}
 
             AMD_GPU(const std::uint32_t concurrency, const std::uint32_t device_id)
@@ -33,8 +33,16 @@ namespace XXX_NAMESPACE
 
             static constexpr DeviceName Name() { return DeviceName::AMD_GPU; }
 
-            template <typename T>
-            static constexpr std::int32_t WavefrontSize() { return 64; }
+            template <typename T = void>
+            static constexpr std::int32_t WavefrontSize()
+            {
+                // Wavefront size is architecture specific.
+                #if defined(__GFX10__) || defined(__GFX11__)
+                return 32; /* RDNA */
+                #else
+                return 64; /* GCN, CDNA */
+                #endif
+            }
 
             template <typename Func, typename ...Args>
             void Execute(Func&& func, const dim3& grid, const dim3& block, const std::size_t shared_mem_bytes,
@@ -42,7 +50,7 @@ namespace XXX_NAMESPACE
             {
                 SafeCall(hipSetDevice(DeviceId()));
                 hipLaunchKernelGGL(func, grid, block, shared_mem_bytes, 0, std::forward<Args>(args)...);
-                Synchronize();
+                //Synchronize();
             }
 
             template <typename Func, typename ...Args>
@@ -50,7 +58,7 @@ namespace XXX_NAMESPACE
             {
                 SafeCall(hipSetDevice(DeviceId()));
                 func(context, std::forward<Args>(args)...);
-                Synchronize();
+                //Synchronize();
             }
 
             void Synchronize()
@@ -58,9 +66,12 @@ namespace XXX_NAMESPACE
                 context.Synchronize();
             }
 
+            CPU& Host() { return host; }
+
         private:
             const std::uint32_t concurrency;
             HipContext context;
+            CPU host; /* Configured via NUM_THREADS environment variable */
     };
 
     template <>

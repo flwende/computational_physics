@@ -14,8 +14,8 @@
 
 using namespace XXX_NAMESPACE;
 
-constexpr std::size_t WarmupIterations {1UL * 1024 * 1024};
-constexpr std::size_t BenchmarkIterations {4UL * 1024 * 1024 * 1024};
+constexpr std::size_t WarmupIterations {1UL * 1000 * 1024};
+constexpr std::size_t BenchmarkIterations {16UL * 1000 * 1000 * 1024};
 
 // Returns elapsed time in seconds for running the benchmark.
 template <template <DeviceName> typename RNG, DeviceName Target>

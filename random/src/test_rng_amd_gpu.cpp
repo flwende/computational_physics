@@ -16,24 +16,19 @@
 using namespace XXX_NAMESPACE;
 
 // This value should be equal to the wavefront size of the GPU.
-constexpr std::int32_t Buffersize {AMD_GPU::WavefrontSize<std::uint32_t>()};
+constexpr std::int32_t WavefrontSize {AMD_GPU::WavefrontSize()};
+constexpr std::int32_t Buffersize {WavefrontSize};
 
 // Dynamic shared memory for GPU kernels.
 extern __shared__ std::byte shared_memory[];
-
-template <std::int32_t N>
-__host__ __device__
-std::int32_t Ceil(const std::int32_t value)
-{
-    return ((value + N - 1) / N) * N;
-}
 
 template <typename RngState>
 __device__
 RngState* LoadRngState(const RngState* rng_state)
 {
-    RngState* shared_rng_state = reinterpret_cast<RngState*>(shared_memory);
-    shared_rng_state->Load(rng_state[blockIdx.x]);
+    const std::int32_t rng_id = blockIdx.x * blockDim.y + threadIdx.y;
+    RngState* shared_rng_state = reinterpret_cast<RngState*>(shared_memory + rng_id * sizeof(RngState));
+    shared_rng_state->Load_1d(rng_state[rng_id]);
     return shared_rng_state;
 }
 
@@ -41,7 +36,8 @@ template <typename RngState>
 __device__
 void UnloadRngState(const RngState* shared_rng_state, RngState* rng_state)
 {
-    shared_rng_state->Unload(rng_state[blockIdx.x]);
+    const std::int32_t rng_id = blockIdx.x * blockDim.y + threadIdx.y;
+    shared_rng_state->Unload_1d(rng_state[rng_id]);
 }
 
 template <typename RngState>
@@ -49,17 +45,18 @@ __global__
 void Kernel(RngState* rng_state, float* output, const std::int32_t iterations)
 {
     RngState* state = LoadRngState(rng_state);
-    float* random_numbers = output + blockIdx.x * Buffersize;
+    const std::int32_t rng_id = blockIdx.x * blockDim.y + threadIdx.y;
+    float* random_numbers = output + rng_id * Buffersize;
 
     for (std::int32_t i = 0; i < iterations; i += RngState::ShuffleDistance())
     {
         for (std::int32_t ii = 0; ii < RngState::ShuffleDistance(); ++ii)
         {
-            state->Update();
+            state->Update_1d();
             random_numbers[threadIdx.x] = 2.3283064370807974e-10f * state->Get(threadIdx.x);
         }
         #if defined RANDOM_SHUFFLE_STATE
-        state->Shuffle();
+        state->Shuffle_1d();
         #endif
     }
 
@@ -73,42 +70,46 @@ std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id,
 
     AMD_GPU gpu;
     const std::uint32_t num_thread_blocks = gpu.Concurrency();
+    const std::uint32_t rngs_per_thread_block = 256 / WavefrontSize;
+    const std::uint32_t num_rngs = num_thread_blocks * rngs_per_thread_block;
+
+    std::cout << "rngs_per_thread_block: " << rngs_per_thread_block << std::endl;
+    std::cout << "num_rngs: " << num_rngs << std::endl;
 
     SafeCall(hipSetDevice(gpu.DeviceId()));
 
     // Allocate RNG state on the host.
     using RngState = typename RNG<DeviceName::AMD_GPU>::State;
-    std::vector<RngState> host_rng_state(num_thread_blocks);
-    for (std::int32_t i = 0; i < num_thread_blocks; ++i)
+    std::vector<RngState> host_rng_state(num_rngs);
+    for (std::int32_t i = 0; i < num_rngs; ++i)
         host_rng_state[i].Init(i + 1);
 
     GpuPointer<RngState> gpu_rng_state;
     {
         RngState* ptr{};
-        SafeCall(hipMalloc(&ptr, num_thread_blocks * sizeof(RngState)));
-        SafeCall(hipMemcpy(ptr, host_rng_state.data(), num_thread_blocks * sizeof(RngState), hipMemcpyHostToDevice));
+        SafeCall(hipMalloc(&ptr, num_rngs * sizeof(RngState)));
+        SafeCall(hipMemcpy(ptr, host_rng_state.data(), num_rngs * sizeof(RngState), hipMemcpyHostToDevice));
         gpu_rng_state.reset(ptr);
     }
 
     GpuPointer<float> gpu_random_numbers;
     {
         float* ptr{};
-        SafeCall(hipMalloc(&ptr, num_thread_blocks * Buffersize * sizeof(float)));
+        SafeCall(hipMalloc(&ptr, num_rngs * Buffersize * sizeof(float)));
         gpu_random_numbers.reset(ptr);
     }
 
     // Configure kernel launch.
     const dim3 grid {num_thread_blocks, 1, 1};
-    const dim3 block {AMD_GPU::WavefrontSize<std::uint32_t>(), 1, 1};
-    const std::size_t shared_mem_bytes = sizeof(RngState); // Per thread block.
+    const dim3 block {WavefrontSize, rngs_per_thread_block, 1};
+    const std::size_t shared_mem_bytes = rngs_per_thread_block * sizeof(RngState); // Per thread block.
 
     // Warmup.
     gpu.Execute([&] (auto& context)
         {
             const auto [warmup_iterations, _] = iterations;
             Kernel<RngState><<<grid, block, shared_mem_bytes>>>(gpu_rng_state.get(), gpu_random_numbers.get(),
-                (warmup_iterations + (num_thread_blocks * Buffersize - 1)) / (num_thread_blocks * Buffersize));
-
+                (warmup_iterations + (num_rngs * Buffersize - 1)) / (num_rngs * Buffersize));
             context.Synchronize();
         });
 
@@ -118,7 +119,8 @@ std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id,
     {
         gpu.Execute(Kernel<RngState>, grid, block, shared_mem_bytes,
             gpu_rng_state.get(), gpu_random_numbers.get(),
-            (benchmark_iterations + (num_thread_blocks * Buffersize - 1)) / (num_thread_blocks * Buffersize));
+            (benchmark_iterations + (num_rngs * Buffersize - 1)) / (num_rngs * Buffersize));
+        gpu.Synchronize();
     }
     const auto endtime = std::chrono::high_resolution_clock::now();
     const double elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-6;
