@@ -45,7 +45,7 @@ namespace XXX_NAMESPACE
         const std::uint32_t thread_id = thread_group.ThreadId();
 
         // Possible compiler optimization: N_0 has default value 0.
-        // if the extent of the tile in 0-direction equals chunk[0] (= multiple of the SIMD width),
+        // if the extent of the tile in 0-direction equals tile_size[0] (= multiple of the SIMD width),
         // the compiler can maybe apply some SIMD related optimizations
         const std::int32_t ii_max = (N_0 == 0 ? n_sub[0] : N_0);
         const std::int32_t jj_max = n_sub[1];
@@ -57,7 +57,7 @@ namespace XXX_NAMESPACE
         std::uint32_t tmp[ii_max];
 
         // Random numbers.
-        std::vector<float> buffer(chunk[0]);
+        std::vector<float> buffer(tile_size[0]);
 
         // Step 1.
         for (std::int32_t jj = 0; jj < jj_max; ++jj)

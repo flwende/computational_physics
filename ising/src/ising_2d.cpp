@@ -1,3 +1,12 @@
+/*
+Target name: CPU
+WARMUP: 1000 sweeps
+MEASUREMENT: 100000 sweeps
+Update time per site (lattice = 128 x 128): 3.36697 ns
+Internal energy per site: -1.41921
+Absolute magnetization per site: -0.324382
+*/
+
 #include <chrono>
 #include <iostream>
 #include <cstdlib>
@@ -12,9 +21,9 @@
 
 using namespace XXX_NAMESPACE;
 
-//static constexpr std::int32_t n_warmup = 1000;
-static constexpr std::int32_t n_warmup = 1;
-static constexpr std::int32_t n_sep = 20;
+static constexpr std::int32_t n_warmup = 1000;
+//static constexpr std::int32_t n_warmup = 1;
+static constexpr std::int32_t n_sep = 10;
 //static constexpr std::int32_t n_sep = 1;
 
 namespace defaults

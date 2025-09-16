@@ -240,14 +240,14 @@ namespace XXX_NAMESPACE
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{chunk[0], chunk[1], 1};
+        const dim3 block{static_cast<std::uint32_t>(tile_size[0]), static_cast<std::uint32_t>(tile_size[1]), 1};
         const std::size_t shared_mem_bytes = Ceil<64>(sizeof(RngState)) +
-            2 * chunk[0] * chunk[1] * (sizeof(Lattice<2>::Spin) + sizeof(GpuLabelType));
+            2 * tile_size[0] * tile_size[1] * (sizeof(Lattice<2>::Spin) + sizeof(GpuLabelType));
 
         //std::cout << "Shmem: " << shared_mem_bytes << " Bytes" << std::endl;
         SafeCall(hipSetDevice(gpu.Id()));
         AssignLabels_Kernel<<<grid, block, shared_mem_bytes>>>(lattice.RawGpuPointer(),
-            extent_0, extent_1, 2 * chunk[0], chunk[1],
+            extent_0, extent_1, 2 * tile_size[0], tile_size[1],
             gpu_cluster.get(), gpu_rng_state.get(), p_add);
 
         gpu.Synchronize();
@@ -275,8 +275,8 @@ namespace XXX_NAMESPACE
         const std::int32_t extent_0 = lattice.Extent()[0];
         const std::int32_t extent_1 = lattice.Extent()[1];
 
-        const std::int32_t n_0 = extent_0 / chunk[0];
-        const std::int32_t n_1 = extent_1 / chunk[1];
+        const std::int32_t n_0 = extent_0 / tile_size[0];
+        const std::int32_t n_1 = extent_1 / tile_size[1];
         const std::int32_t n_total = n_0 * n_1;
 
         const std::int32_t n_chunk = (n_total + num_threads - 1) / num_threads;
@@ -285,15 +285,15 @@ namespace XXX_NAMESPACE
 
         for (std::int32_t n = n_start; n < n_end; ++n)
         {
-            const std::int32_t j = (n / n_0) * chunk[1];
-            const std::int32_t i = (n % n_0) * chunk[0];
+            const std::int32_t j = (n / n_0) * tile_size[1];
+            const std::int32_t i = (n % n_0) * tile_size[0];
             const std::array<int32_t, 2> n_offset{i, j};
-            const std::array<int32_t, 2> n_sub{std::min(chunk[0], extent_0 - i), std::min(chunk[1], extent_1 - j)};
-            if (n_sub[0] == chunk[0])
+            const std::array<int32_t, 2> n_sub{std::min(tile_size[0], extent_0 - i), std::min(tile_size[1], extent_1 - j)};
+            if (n_sub[0] == tile_size[0])
             {
                 // We can call a version of that method with the extent in 0-direction being
                 // a compile time constant (hopefully allowing the compiler to do better optimizations)
-                CCL_SelfLabeling<chunk[0]>(context, lattice, p_add, n_offset, n_sub);
+                CCL_SelfLabeling<tile_size[0]>(context, lattice, p_add, n_offset, n_sub);
             }
             else
             {
@@ -379,14 +379,14 @@ namespace XXX_NAMESPACE
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{std::max(2 * chunk[0], chunk[1]), 1, 1};
+        const dim3 block{static_cast<std::uint32_t>(std::max(2 * tile_size[0], tile_size[1])), 1, 1};
         const std::size_t shared_mem_bytes = Ceil<64>(sizeof(RngState));
 
         //std::cout << "Shmem: " << shared_mem_bytes << " Bytes" << std::endl;
         
         SafeCall(hipSetDevice(gpu.Id()));
         MergeLabels_Kernel<<<grid, block, shared_mem_bytes>>>(lattice.RawGpuPointer(),
-            extent_0, extent_1, 2 * chunk[0], chunk[1],
+            extent_0, extent_1, 2 * tile_size[0], tile_size[1],
             gpu_cluster.get(), gpu_rng_state.get(), p_add);
 
         gpu.Synchronize();
@@ -415,26 +415,26 @@ namespace XXX_NAMESPACE
         const std::int32_t extent_0 = lattice.Extent()[0];
         const std::int32_t extent_1 = lattice.Extent()[1];
 
-        const std::int32_t n_0 = extent_0 / chunk[0];
-        const std::int32_t n_1 = extent_1 / chunk[1];
+        const std::int32_t n_0 = extent_0 / tile_size[0];
+        const std::int32_t n_1 = extent_1 / tile_size[1];
         const std::int32_t n_total = n_0 * n_1;
 
         const std::int32_t n_chunk = (n_total + num_threads - 1) / num_threads;
         const std::int32_t n_start = thread_id * n_chunk;
         const std::int32_t n_end = std::min(n_start + n_chunk, n_total);
 
-        constexpr std::int32_t buffer_size = chunk[0] + chunk[1];
+        constexpr std::int32_t buffer_size = tile_size[0] + tile_size[1];
         std::vector<float> buffer(buffer_size);
 
         for (std::int32_t n = n_start; n < n_end; ++n)
         {
-            const std::int32_t j = (n / n_0) * chunk[1];
-            const std::int32_t i = (n % n_0) * chunk[0];
+            const std::int32_t j = (n / n_0) * tile_size[1];
+            const std::int32_t i = (n % n_0) * tile_size[0];
 
             rng[thread_id]->NextReal(buffer);
 
-            const std::int32_t jj_max = std::min(chunk[1], extent_1 - j);
-            const std::int32_t ii_max = std::min(chunk[0], extent_0 - i);
+            const std::int32_t jj_max = std::min(tile_size[1], extent_1 - j);
+            const std::int32_t ii_max = std::min(tile_size[0], extent_0 - i);
 
             // Merge in 1-direction
             for (std::int32_t ii = 0; ii < ii_max; ++ii)
@@ -451,7 +451,7 @@ namespace XXX_NAMESPACE
             // merge in 0-direction
             for (std::int32_t jj = 0; jj < jj_max; ++jj)
             {
-                if (buffer[chunk[0] + jj] < p_add && lattice[j + jj][i + ii_max - 1] == lattice[j + jj][(i + ii_max) % extent_0])
+                if (buffer[tile_size[0] + jj] < p_add && lattice[j + jj][i + ii_max - 1] == lattice[j + jj][(i + ii_max) % extent_0])
                 {
                     LabelType a = cluster[j + jj][i + ii_max - 1];
                     LabelType b = cluster[j + jj][(i + ii_max) % extent_0];
@@ -573,10 +573,10 @@ namespace XXX_NAMESPACE
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{2 * chunk[0], chunk[1], 1};
+        const dim3 block{static_cast<std::uint32_t>(2 * tile_size[0]), static_cast<std::uint32_t>(tile_size[1]), 1};
         
         SafeCall(hipSetDevice(gpu.Id()));
-        ResolveLabels_Kernel<<<grid, block>>>(gpu_cluster.get(), extent_0, extent_1, 2 * chunk[0], chunk[1]);
+        ResolveLabels_Kernel<<<grid, block>>>(gpu_cluster.get(), extent_0, extent_1, 2 * tile_size[0], tile_size[1]);
 
         gpu.Synchronize();
         
@@ -658,11 +658,11 @@ namespace XXX_NAMESPACE
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{2 * chunk[0], chunk[1], 1};
+        const dim3 block{static_cast<std::uint32_t>(2 * tile_size[0]), static_cast<std::uint32_t>(tile_size[1]), 1};
         
         SafeCall(hipSetDevice(gpu.Id()));
         FlipClusters_Kernel<<<grid, block>>>(lattice.RawGpuPointer(),
-            extent_0, extent_1, 2 * chunk[0], chunk[1],
+            extent_0, extent_1, 2 * tile_size[0], tile_size[1],
             gpu_cluster.get());
 
         gpu.Synchronize();

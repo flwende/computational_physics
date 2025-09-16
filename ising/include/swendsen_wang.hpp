@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdlib>
 #include <cstdint>
 #include <vector>
@@ -33,12 +34,12 @@ namespace XXX_NAMESPACE
         using DeviceType = typename Device<Target>::Type;
 
         static constexpr std::int32_t WavefrontSize = DeviceType::template WavefrontSize<LabelType>();
-        static constexpr std::int32_t Chunk_1 = 8;
-        static constexpr std::int32_t Chunk_0 = (Target == DeviceName::CPU ? WavefrontSize : WavefrontSize / Chunk_1);
+        //static constexpr std::int32_t Chunk_1 = 8;
+        ///static constexpr std::int32_t Chunk_0 = (Target == DeviceName::CPU ? WavefrontSize : WavefrontSize / Chunk_1);
 
         // Tile size for parallel processing: the innermost dimension should be a
         // multiple of the SIMD width of the target platform.
-        static constexpr std::int32_t chunk[2] = {Chunk_0, Chunk_1};
+        //static constexpr std::int32_t chunk[2] = {Chunk_0, Chunk_1};
 
         public:
             SwendsenWang_2D(DeviceType& target);
@@ -85,14 +86,12 @@ namespace XXX_NAMESPACE
             // Flip clusters.
             void FlipClusters(Context& context, Lattice<2>& lattice);
 
-            // Multi-threading: reuse threads throughout MC updates.
             DeviceType& target;
-
-            // Cluster: the largest possible label is 0xFFFFFFFF
             MultiDimensionalArray<LabelType, 2> cluster;
+            const std::array<std::int32_t, 2> tile_size;
 
             // Random number generator: if you use the lcg32 generator, make sure you are
-            // compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers are too bad)
+            // compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers might have too low quality).
             using RngState = typename RNG<Target>::State;
             std::vector<RngState> rng_state;
             std::vector<std::shared_ptr<RandomNumberGenerator>> rng;
