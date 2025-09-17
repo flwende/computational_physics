@@ -13,7 +13,7 @@
 
 namespace XXX_NAMESPACE
 {
-    template <typename T, std::int32_t Dimension>
+    template <typename T, std::uint32_t Dimension>
     class NonOwningMultiDimensionalArray
     {
         static_assert(Dimension > 0, "Error: Dimension must be larger than 0.");
@@ -27,7 +27,7 @@ namespace XXX_NAMESPACE
                 accessor(external_ptr, extent)
             {}
 
-            bool Initialized() const { return accessor.RawPointer() != nullptr; }
+            auto Initialized() const { return accessor.RawPointer() != nullptr; }
             const auto& Extent() const { return accessor.Extent(); }
             auto TotalElements() const { return accessor.TotalElements(); }
 
@@ -41,7 +41,7 @@ namespace XXX_NAMESPACE
             NonOwningMultiDimensionalArray() = default;
     };
 
-    template <typename T, std::int32_t Dimension>
+    template <typename T, std::uint32_t Dimension>
     class MultiDimensionalArray : public NonOwningMultiDimensionalArray<T, Dimension>
     {
         using Base = NonOwningMultiDimensionalArray<T, Dimension>;
@@ -56,7 +56,7 @@ namespace XXX_NAMESPACE
             explicit MultiDimensionalArray(const std::array<std::int32_t, Dimension>& extent)
                 :
                 MultiDimensionalArray(std::make_unique<T[]>(std::accumulate(std::begin(extent), std::end(extent), 1, std::multiplies<std::size_t>())), extent)
-            {};
+            {}
             
             MultiDimensionalArray(const MultiDimensionalArray&) = delete;
             MultiDimensionalArray& operator=(const MultiDimensionalArray& other) = delete;
@@ -70,7 +70,7 @@ namespace XXX_NAMESPACE
                 std::swap(*this, tmp);
             }
 
-            MultiDimensionalArray DeepCopy() const
+            auto DeepCopy() const
             {
                 using Base::Extent;
                 using Base::TotalElements;
@@ -84,8 +84,7 @@ namespace XXX_NAMESPACE
         protected:
             MultiDimensionalArray(PointerType&& data, const std::array<std::int32_t, Dimension>& extent)
                 :
-                Base(data.get(), extent),
-                data(std::move(data))
+                Base(data.get(), extent), data(std::move(data))
             {};
     };
 }

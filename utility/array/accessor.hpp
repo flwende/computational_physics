@@ -29,7 +29,7 @@ namespace XXX_NAMESPACE
         }
     }
 
-    template <typename T, std::int32_t Dimension>
+    template <typename T, std::uint32_t Dimension>
     class Accessor final
     {
         static_assert(Dimension > 0, "Error: Dimension must be larger than 0.");
@@ -40,12 +40,12 @@ namespace XXX_NAMESPACE
         private:
             T* ptr {};
             std::array<std::int32_t, Dimension> extent;
-            std::size_t total_elements;
+            std::size_t total_elements {};
 
         public:
             Accessor() = default;
 
-            Accessor(T* ptr, const std::array<std::int32_t, Dimension>& extent)
+            explicit Accessor(T* ptr, const std::array<std::int32_t, Dimension>& extent)
                 :
                 ptr(ptr),
                 extent(extent),
@@ -57,7 +57,15 @@ namespace XXX_NAMESPACE
             Accessor(const Accessor&) = default;
             Accessor& operator=(const Accessor&) = default;
 
-            Accessor(Accessor&& other) noexcept : ptr(other.ptr), extent(other.extent) { other.ptr = {}; other.extent = {}; other.total_elements = {}; }
+            Accessor(Accessor&& other) noexcept
+                :
+                ptr(other.ptr), extent(other.extent)
+            {
+                other.ptr = {};
+                other.extent = {};
+                other.total_elements = {};
+            }
+
             Accessor& operator=(Accessor&& other) noexcept
             {
                 if (this != &other)
@@ -87,7 +95,7 @@ namespace XXX_NAMESPACE
                 else
                 {
                     const std::size_t n = std::accumulate(std::begin(extent), std::end(extent) - 1, 1, std::multiplies<std::size_t>());
-                    return {&ptr[index * n], Extract<Dimension - 1>(extent)};
+                    return ReturnType(&ptr[index * n], Extract<Dimension - 1>(extent));
                 }
             }
 
@@ -100,7 +108,7 @@ namespace XXX_NAMESPACE
                 else
                 {
                     const std::size_t n = std::accumulate(std::begin(extent), std::end(extent) - 1, 1, std::multiplies<std::size_t>());
-                    return {&ptr[index * n], Extract<Dimension - 1>(extent)};
+                    return ConstReturnType(&ptr[index * n], Extract<Dimension - 1>(extent));
                 }
             }
     };
