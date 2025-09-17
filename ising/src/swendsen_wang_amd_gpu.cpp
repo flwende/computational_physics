@@ -557,7 +557,6 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::ResolveLabels(Context& context)
     {
-        static bool ran_already = false;
         static std::int32_t iteration = 0;
         //if (ran_already)
         //    return;
@@ -580,7 +579,6 @@ namespace XXX_NAMESPACE
 
         gpu.Synchronize();
         
-        //if (!ran_already)
         if (++iteration == 100)
         {
             SafeCall(hipMemcpy(cluster.RawPointer(), gpu_cluster.get(), extent_0 * extent_1 * sizeof(LabelType), hipMemcpyDeviceToHost));
@@ -593,8 +591,6 @@ namespace XXX_NAMESPACE
                 }
                 std::cout << std::endl;
             }
-
-            ran_already = true;
         }
 
         /*

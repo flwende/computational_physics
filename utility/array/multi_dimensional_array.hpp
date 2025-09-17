@@ -14,38 +14,78 @@
 namespace XXX_NAMESPACE
 {
     template <typename T, std::int32_t Dimension>
-    class MultiDimensionalArray
+    class NonOwningMultiDimensionalArray
     {
         static_assert(Dimension > 0, "Error: Dimension must be larger than 0.");
 
+        protected:
+            Accessor<T, Dimension> accessor;
+
+        public:
+            explicit NonOwningMultiDimensionalArray(T* external_ptr, const std::array<std::int32_t, Dimension>& extent)
+                :
+                accessor(external_ptr, extent)
+            {}
+
+            bool Initialized() const { return accessor.RawPointer() != nullptr; }
+            const auto& Extent() const { return accessor.Extent(); }
+            auto TotalElements() const { return accessor.TotalElements(); }
+
+            T* RawPointer() { return accessor.RawPointer(); }
+            const T* RawPointer() const { return accessor.RawPointer(); }
+
+            inline auto operator[](const std::int32_t index) -> decltype(accessor[0]) { return accessor[index]; }
+            inline auto operator[](const std::int32_t index) const -> decltype(accessor[0]) { return accessor[index]; }
+
+        protected:
+            NonOwningMultiDimensionalArray() = default;
+    };
+
+    template <typename T, std::int32_t Dimension>
+    class MultiDimensionalArray : public NonOwningMultiDimensionalArray<T, Dimension>
+    {
+        using Base = NonOwningMultiDimensionalArray<T, Dimension>;
+        using PointerType = std::unique_ptr<T[]>;
+
+        protected:
+            PointerType data;
+
         public:
             MultiDimensionalArray() = default;
-            
-            MultiDimensionalArray(const std::array<std::int32_t, Dimension>& extent)
+
+            explicit MultiDimensionalArray(const std::array<std::int32_t, Dimension>& extent)
                 :
-                extent(extent),
-                data(new T[std::accumulate(std::begin(extent), std::end(extent), 1, std::multiplies<std::size_t>())]),
-                accessor(data.get(), extent)
-            {}
+                MultiDimensionalArray(std::make_unique<T[]>(std::accumulate(std::begin(extent), std::end(extent), 1, std::multiplies<std::size_t>())), extent)
+            {};
             
+            MultiDimensionalArray(const MultiDimensionalArray&) = delete;
+            MultiDimensionalArray& operator=(const MultiDimensionalArray& other) = delete;
+
+            MultiDimensionalArray(MultiDimensionalArray&&) noexcept = default;
+            MultiDimensionalArray& operator=(MultiDimensionalArray&&) noexcept = default;
+
             void Resize(const std::array<std::int32_t, Dimension>& extent)
             {
-                MultiDimensionalArray tmp{extent};
+                MultiDimensionalArray tmp(extent);
                 std::swap(*this, tmp);
             }
 
-            bool Initialized() const { return data.get() != nullptr; }
-            const auto& Extent() const { return extent; }
+            MultiDimensionalArray DeepCopy() const
+            {
+                using Base::Extent;
+                using Base::TotalElements;
+                using Base::RawPointer;
 
-            T* RawPointer() { return data.get(); }
-            const T* RawPointer() const { return data.get(); }
-
-            auto operator[](const std::int32_t index) { return accessor[index]; }
-            const auto operator[](const std::int32_t index) const { return accessor[index]; }
+                MultiDimensionalArray tmp(Extent());
+                std::copy_n(std::begin(RawPointer()), TotalElements(), tmp.RawPointer());
+                return tmp;
+            }
 
         protected:
-            std::array<std::int32_t, Dimension> extent;
-            std::unique_ptr<T[]> data;
-            Accessor<T, Dimension> accessor;
+            MultiDimensionalArray(PointerType&& data, const std::array<std::int32_t, Dimension>& extent)
+                :
+                Base(data.get(), extent),
+                data(std::move(data))
+            {};
     };
 }

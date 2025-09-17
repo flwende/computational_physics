@@ -50,11 +50,15 @@ namespace XXX_NAMESPACE
         const std::int32_t ii_max = (N_0 == 0 ? n_sub[0] : N_0);
         const std::int32_t jj_max = n_sub[1];
         // Local copy of the tile.
-        std::uint32_t l[jj_max][ii_max];
+        //std::uint32_t l[jj_max][ii_max];
         // Local cluster.
-        std::uint32_t c[jj_max][ii_max];
+        //std::uint32_t c[jj_max][ii_max];
         // Temporaries.
-        std::uint32_t tmp[ii_max];
+        //std::uint32_t tmp[ii_max];
+        auto i_ptr = reinterpret_cast<std::uint32_t*>(alloca((2 * (ii_max * jj_max) + ii_max) * sizeof(std::uint32_t)));
+        NonOwningMultiDimensionalArray<std::uint32_t, 2> l{i_ptr, std::array<std::int32_t, 2>{ii_max, jj_max}};
+        NonOwningMultiDimensionalArray<std::uint32_t, 2> c{i_ptr + ii_max * jj_max, std::array<std::int32_t, 2>{ii_max, jj_max}};
+        NonOwningMultiDimensionalArray<std::uint32_t, 1> tmp{i_ptr + 2 * ii_max * jj_max, std::array<std::int32_t, 1>{ii_max}};
 
         // Random numbers.
         std::vector<float> buffer(tile_size[0]);
