@@ -74,6 +74,9 @@ namespace XXX_NAMESPACE
         }
 #endif
 
+        if constexpr (Target == DeviceName::CPU)
+            target.SetManagedStackMemorySize(2048);
+
         // Probability for adding aligned neighboring sites to the cluster.
         const float p_add = 1.0f - static_cast<float>(std::exp(-2.0f / temperature));
         target.Execute([&,this] (Context& context, auto&&... args)

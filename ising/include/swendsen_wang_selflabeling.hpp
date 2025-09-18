@@ -55,10 +55,14 @@ namespace XXX_NAMESPACE
         //std::uint32_t c[jj_max][ii_max];
         // Temporaries.
         //std::uint32_t tmp[ii_max];
-        auto i_ptr = reinterpret_cast<std::uint32_t*>(alloca((2 * (ii_max * jj_max) + ii_max) * sizeof(std::uint32_t)));
-        NonOwningMultiDimensionalArray<std::uint32_t, 2> l{i_ptr, std::array<std::int32_t, 2>{ii_max, jj_max}};
-        NonOwningMultiDimensionalArray<std::uint32_t, 2> c{i_ptr + ii_max * jj_max, std::array<std::int32_t, 2>{ii_max, jj_max}};
-        NonOwningMultiDimensionalArray<std::uint32_t, 1> tmp{i_ptr + 2 * ii_max * jj_max, std::array<std::int32_t, 1>{ii_max}};
+
+        // TODO: add a new data type that wraps the below statements.
+        auto l_ptr = thread_group.StackMemory().Allocate<std::uint32_t>(ii_max * jj_max);
+        auto c_ptr = thread_group.StackMemory().Allocate<std::uint32_t>(ii_max * jj_max);
+        auto t_ptr = thread_group.StackMemory().Allocate<std::uint32_t>(ii_max);
+        NonOwningMultiDimensionalArray<std::uint32_t, 2> l{l_ptr.Get(), {ii_max, jj_max}};
+        NonOwningMultiDimensionalArray<std::uint32_t, 2> c{c_ptr.Get(), {ii_max, jj_max}};
+        NonOwningMultiDimensionalArray<std::uint32_t, 1> tmp{t_ptr.Get(), {ii_max}};
 
         // Random numbers.
         std::vector<float> buffer(tile_size[0]);

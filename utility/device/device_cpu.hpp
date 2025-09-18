@@ -5,7 +5,7 @@
 #include <thread>
 
 #include "environment/environment.hpp"
-#include "thread_group/thread_group.hpp"
+#include "execution/thread_group.hpp"
 #include "simd/simd.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -39,6 +39,11 @@ namespace XXX_NAMESPACE
             void Execute(Func&& func, Args&&... args)
             {
                 thread_group.Execute(std::forward<Func>(func), std::forward<Args>(args)...);
+            }
+
+            void SetManagedStackMemorySize(const std::uint32_t bytes)
+            {
+                thread_group.SetManagedStackMemorySize(bytes);
             }
 
             void Synchronize()

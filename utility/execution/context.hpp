@@ -10,21 +10,23 @@ namespace XXX_NAMESPACE
 {
     class Context
     {
+        protected:
+            const std::uint32_t group_size;
+            const std::uint32_t id;
+
         public:
-            Context(const std::int32_t group_size, const std::int32_t id)
+            explicit Context(const std::uint32_t group_size, const std::uint32_t id)
                 :
                 group_size(group_size),
                 id(id)
             {}
 
-            const std::int32_t GroupSize() const { return group_size; }
-            const std::int32_t Id() const { return id; }
+            virtual ~Context() noexcept = default;
+
+            const auto GroupSize() const { return group_size; }
+            const auto Id() const { return id; }
 
             virtual void Synchronize() = 0;
-        
-        protected:
-            const std::int32_t group_size;
-            const std::int32_t id;
     };
 }
 
