@@ -1,9 +1,13 @@
 #pragma once
 
+#include <iostream>
+
 #include <cassert>
 #include <cstdint>
 #include <cstddef>
 #include <stdexcept>
+
+#include "memory.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -34,36 +38,47 @@ namespace XXX_NAMESPACE
     //
     class ManagedMemory final
     {
-        template <typename T>
-        class ManagedMemoryRef final
-        {
-            private:
-                T* ptr {};
-                const std::uint32_t count {};
-                ManagedMemory& memory;
+        public:
+            template <typename T>
+            class Pointer final
+            {
+                private:
+                    T* ptr {};
+                    std::uint32_t count {};
+                    ManagedMemory& memory;
 
-            public:
-                explicit ManagedMemoryRef(T* ptr, const std::uint32_t count, ManagedMemory& memory)
-                    :
-                    ptr(ptr), count(count), memory(memory)
-                {
-                    // TODO: add alignment.
-                }
+                public:
+                    explicit Pointer(T* ptr, const std::uint32_t count, ManagedMemory& memory)
+                        :
+                        ptr(ptr), count(count), memory(memory)
+                    {}
 
-                ~ManagedMemoryRef()
-                {
-                    memory.Release(count * sizeof(T));
-                }
+                    ~Pointer()
+                    {
+                        memory.Release(count * sizeof(T));
+                    }
 
-                ManagedMemoryRef(const ManagedMemoryRef&) = delete;
-                ManagedMemoryRef& operator=(const ManagedMemoryRef&) = delete;
+                    Pointer(const Pointer&) = delete;
+                    Pointer& operator=(const Pointer&) = delete;
 
-                ManagedMemoryRef(ManagedMemoryRef&&) noexcept = default;
-                ManagedMemoryRef& operator=(ManagedMemoryRef&&) noexcept = default;
+                    Pointer(Pointer&& other) noexcept
+                        :
+                        ptr(other.ptr),
+                        count(other.count),
+                        memory(other.memory)
+                    {
+                        if (this != &other)
+                        {
+                            other.ptr = {};
+                            other.count =  {};
+                        }
+                    }
 
-                auto Get() { return ptr; }
-                const auto Get() const { return ptr; }
-        };
+                    Pointer& operator=(Pointer&&) noexcept = default;
+
+                    auto Get() { return ptr; }
+                    const auto Get() const { return ptr; }
+            };
 
         protected:
             std::byte* ptr {};
@@ -101,7 +116,8 @@ namespace XXX_NAMESPACE
             template <typename T>
             auto Allocate(const std::uint32_t count)
             {
-                return ManagedMemoryRef<T>(reinterpret_cast<T*>(GetBytes(count * sizeof(T))), count, *this);
+                // TODO: add alignment.
+                return Pointer<T>(reinterpret_cast<T*>(GetBytes(count * sizeof(T))), count, *this);
             }
 
         private:

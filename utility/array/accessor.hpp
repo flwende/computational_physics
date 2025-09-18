@@ -1,11 +1,10 @@
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
-#include <numeric>
-#include <type_traits>
+
+#include "misc/accumulate.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -22,9 +21,9 @@ namespace XXX_NAMESPACE
 
             if constexpr (M == N)
                 return a;
-            
+
             std::array<T, M> b;
-            std::copy(std::begin(a), std::begin(a) + M, std::begin(b));
+            std::copy_n(std::begin(a), M, std::begin(b));
             return b;
         }
     }
@@ -49,7 +48,7 @@ namespace XXX_NAMESPACE
                 :
                 ptr(ptr),
                 extent(extent),
-                hyper_plane_size(std::accumulate(std::begin(extent), std::end(extent) - 1, 1, std::multiplies<std::size_t>()))
+                hyper_plane_size(Accumulate<std::multiplies<std::size_t>>(extent | std::ranges::views::take(Dimension - 1), 1UL))
             {
                 assert(ptr != nullptr && "Accessor expects a non-null pointer.");
             }
@@ -60,11 +59,11 @@ namespace XXX_NAMESPACE
             Accessor(Accessor&& other) noexcept = default;
             Accessor& operator=(Accessor&& other) noexcept = default;
 
-            const auto& Extent() const noexcept { return extent; }
-            auto TotalElements() const noexcept { return hyper_plane_size * extent[Dimension - 1]; }
+            auto& Extent() const noexcept { return extent; }
+            auto Elements() const noexcept { return hyper_plane_size * extent[Dimension - 1]; }
 
-            T* RawPointer() noexcept { return ptr; }
-            const T* RawPointer() const noexcept { return ptr; }
+            auto RawPointer() noexcept { return ptr; }
+            auto RawPointer() const noexcept { return ptr; }
 
             ReturnType operator[](const std::int32_t index)
             {

@@ -3,9 +3,10 @@
 #include <array>
 #include <cstdint>
 #include <memory>
-#include <numeric>
 
 #include "accessor.hpp"
+#include "memory/managed_memory.hpp"
+#include "misc/accumulate.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -13,7 +14,7 @@
 
 namespace XXX_NAMESPACE
 {
-    template <typename T, std::uint32_t Dimension>
+    template <typename T, std::uint32_t Dimension, MemoryKind MK = MemoryKind::Heap>
     class NonOwningMultiDimensionalArray
     {
         static_assert(Dimension > 0, "Error: Dimension must be larger than 0.");
@@ -31,17 +32,39 @@ namespace XXX_NAMESPACE
             {}
 
             auto Initialized() const noexcept { return accessor.RawPointer() != nullptr; }
-            const auto& Extent() const noexcept { return accessor.Extent(); }
-            auto TotalElements() const noexcept { return accessor.TotalElements(); }
+            auto& Extent() const noexcept { return accessor.Extent(); }
+            auto Elements() const noexcept { return accessor.Elements(); }
 
-            T* RawPointer() noexcept { return accessor.RawPointer(); }
-            const T* RawPointer() const noexcept { return accessor.RawPointer(); }
+            auto RawPointer() noexcept { return accessor.RawPointer(); }
+            auto RawPointer() const noexcept { return accessor.RawPointer(); }
 
             auto operator[](const std::int32_t index) -> decltype(accessor[0]) { return accessor[index]; }
             auto operator[](const std::int32_t index) const -> decltype(accessor[0]) { return accessor[index]; }
 
         protected:
             NonOwningMultiDimensionalArray() noexcept = default;
+    };
+
+    template <typename T, std::uint32_t Dimension>
+    class NonOwningMultiDimensionalArray<T, Dimension, MemoryKind::Stack> : public NonOwningMultiDimensionalArray<T, Dimension>
+    {
+        using Base = NonOwningMultiDimensionalArray<T, Dimension>;
+
+        protected:
+            ManagedMemory::Pointer<T> ptr {};
+
+        public:
+            explicit NonOwningMultiDimensionalArray(ManagedMemory& memory, const std::array<std::int32_t, Dimension>& extent)
+                :
+                NonOwningMultiDimensionalArray(std::move(memory.Allocate<T>(Accumulate<std::multiplies<std::size_t>>(extent, 1UL))), extent)
+            {}
+
+        protected:
+            NonOwningMultiDimensionalArray(ManagedMemory::Pointer<T>&& ptr, const std::array<std::int32_t, Dimension>& extent)
+                :
+                Base(ptr.Get(), extent),
+                ptr(std::move(ptr))
+            {}
     };
 
     template <typename T, std::uint32_t Dimension>
@@ -58,7 +81,7 @@ namespace XXX_NAMESPACE
 
             explicit MultiDimensionalArray(const std::array<std::int32_t, Dimension>& extent)
                 :
-                data(std::make_unique<T[]>(std::accumulate(std::begin(extent), std::end(extent), 1, std::multiplies<std::size_t>()))),
+                data(std::make_unique<T[]>(Accumulate<std::multiplies<std::size_t>>(extent, 1UL))),
                 span(data.get(), extent)
             {}
             
@@ -69,11 +92,11 @@ namespace XXX_NAMESPACE
             MultiDimensionalArray& operator=(MultiDimensionalArray&&) noexcept = default;
 
             auto Initialized() const { return span.Initialized(); }
-            const auto& Extent() const noexcept { return span.Extent(); }
-            auto TotalElements() const noexcept { return span.TotalElements(); }
+            auto& Extent() const noexcept { return span.Extent(); }
+            auto Elements() const noexcept { return span.Elements(); }
 
-            T* RawPointer() noexcept { return span.RawPointer(); }
-            const T* RawPointer() const noexcept { return span.RawPointer(); }
+            auto RawPointer() noexcept { return span.RawPointer(); }
+            auto RawPointer() const noexcept { return span.RawPointer(); }
 
             auto operator[](const std::int32_t index) -> decltype(span[0]) { return span[index]; }
             auto operator[](const std::int32_t index) const -> decltype(span[0]) { return span[index]; }
@@ -87,7 +110,7 @@ namespace XXX_NAMESPACE
             auto DeepCopy() const
             {
                 MultiDimensionalArray tmp(span.Extent());
-                std::copy_n(RawPointer(), TotalElements(), tmp.RawPointer());
+                std::copy_n(RawPointer(), Elements(), tmp.RawPointer());
                 return tmp;
             }
     };

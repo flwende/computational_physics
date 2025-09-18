@@ -55,14 +55,9 @@ namespace XXX_NAMESPACE
         //std::uint32_t c[jj_max][ii_max];
         // Temporaries.
         //std::uint32_t tmp[ii_max];
-
-        // TODO: add a new data type that wraps the below statements.
-        auto l_ptr = thread_group.StackMemory().Allocate<std::uint32_t>(ii_max * jj_max);
-        auto c_ptr = thread_group.StackMemory().Allocate<std::uint32_t>(ii_max * jj_max);
-        auto t_ptr = thread_group.StackMemory().Allocate<std::uint32_t>(ii_max);
-        NonOwningMultiDimensionalArray<std::uint32_t, 2> l{l_ptr.Get(), {ii_max, jj_max}};
-        NonOwningMultiDimensionalArray<std::uint32_t, 2> c{c_ptr.Get(), {ii_max, jj_max}};
-        NonOwningMultiDimensionalArray<std::uint32_t, 1> tmp{t_ptr.Get(), {ii_max}};
+        VariableLengthArray<std::uint32_t, 2> l(thread_group.StackMemory(), {ii_max, jj_max});
+        VariableLengthArray<std::uint32_t, 2> c(thread_group.StackMemory(), {ii_max, jj_max});
+        VariableLengthArray<std::uint32_t, 1> tmp(thread_group.StackMemory(), {ii_max});
 
         // Random numbers.
         std::vector<float> buffer(tile_size[0]);
