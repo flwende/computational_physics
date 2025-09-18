@@ -3,6 +3,7 @@
 #include <numeric>
 
 #include "environment/environment.hpp"
+#include "misc/accumulate.hpp"
 #include "lattice.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -11,11 +12,11 @@
 
 namespace XXX_NAMESPACE
 {
-    template <std::int32_t Dimension>
-    Lattice<Dimension>::Lattice(const std::array<std::int32_t, Dimension>& extent)
+    template <std::uint32_t Dimension>
+    Lattice<Dimension>::Lattice(const std::array<std::uint32_t, Dimension>& extent)
         :
         extent(extent),
-        num_sites(std::accumulate(std::begin(extent), std::end(extent), 1, std::multiplies<std::int32_t>())),
+        num_sites(Accumulate<std::multiplies<std::size_t>>(extent, 1UL)),
         spins(extent)
     {
         auto* ptr = RawPointer();
@@ -29,26 +30,26 @@ namespace XXX_NAMESPACE
     template <>
     std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<CPU>(CPU& cpu)
     {
-        const std::int32_t n_0 = extent[0];
-        const std::int32_t n_1 = extent[1];
+        const std::uint32_t n_0 = extent[0];
+        const std::uint32_t n_1 = extent[1];
 
         std::atomic<std::int64_t> energy{0};
         std::atomic<std::int64_t> magnetization{0};
 
         auto kernel = [&, this] (ThreadContext& context)
             {
-                const std::int32_t thread_id = context.ThreadId();
-                const std::int32_t num_threads = context.NumThreads();
+                const std::uint32_t thread_id = context.ThreadId();
+                const std::uint32_t num_threads = context.NumThreads();
 
-                const std::int32_t y_chunk = (n_1 + num_threads - 1) / num_threads;
-                const std::int32_t start = thread_id * y_chunk;
-                const std::int32_t end = std::min(start + y_chunk, n_1);
+                const std::uint32_t y_chunk = (n_1 + num_threads - 1) / num_threads;
+                const std::uint32_t start = thread_id * y_chunk;
+                const std::uint32_t end = std::min(start + y_chunk, n_1);
 
                 std::int64_t e{0}, m{0};
 
-                for (std::int32_t y = start; y < end; ++y)
+                for (std::uint32_t y = start; y < end; ++y)
                 {
-                    for (std::int32_t x = 0; x < n_0; ++x)
+                    for (std::uint32_t x = 0; x < n_0; ++x)
                     {
                         e += (2 * spins[y][x] - 1) * (
                             (2 * spins[y][(x + 1) % n_0] - 1) +

@@ -51,9 +51,9 @@ namespace XXX_NAMESPACE
         }
     }
 
-    template <std::int32_t N>
+    template <std::uint32_t N>
     __host__ __device__
-    std::int32_t Ceil(const std::int32_t value)
+    std::uint32_t Ceil(const std::uint32_t value)
     {
         return ((value + N - 1) / N) * N;
     }
@@ -76,23 +76,23 @@ namespace XXX_NAMESPACE
 
     template <typename Spin, typename LabelType, typename RngState>
     __global__
-    void AssignLabels_Kernel(const Spin* lattice, const std::int32_t extent_0, const std::int32_t extent_1,
-        const std::int32_t n_sub_0, const std::int32_t n_sub_1,
+    void AssignLabels_Kernel(const Spin* lattice, const std::uint32_t extent_0, const std::uint32_t extent_1,
+        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1,
         LabelType* cluster, RngState* rng_state, const float p_add)
     {
-        const std::int32_t n_0 = extent_0 / n_sub_0;
-        const std::int32_t n_1 = extent_1 / n_sub_1;
-        const std::int32_t n_total = n_0 * n_1;
+        const std::uint32_t n_0 = extent_0 / n_sub_0;
+        const std::uint32_t n_1 = extent_1 / n_sub_1;
+        const std::uint32_t n_total = n_0 * n_1;
 
         RngState* state = LoadRngState(rng_state);
         Spin* sub_lattice = reinterpret_cast<Spin*>(shared_memory + Ceil<64>(sizeof(RngState)));
         GpuLabelType* sub_cluster = reinterpret_cast<GpuLabelType*>(shared_memory + Ceil<64>(sizeof(RngState)) +
             n_sub_0 * n_sub_1 * sizeof(Spin));
         
-        for (std::int32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
         {
-            const std::int32_t bx = (n % n_0);
-            const std::int32_t by = (n / n_0);
+            const std::uint32_t bx = (n % n_0);
+            const std::uint32_t by = (n / n_0);
 
             // Load the sub-lattice for the current block.
             sub_lattice[threadIdx.y * n_sub_0 + threadIdx.x] = lattice[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x];
@@ -105,7 +105,7 @@ namespace XXX_NAMESPACE
             // Connect 1-direction.
             {
                 state->Update();
-                const float r_1 = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+                const float r_1 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
                 if (sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x] == sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x + 1] &&
                     r_1 < p_add)
                 {
@@ -113,7 +113,7 @@ namespace XXX_NAMESPACE
                 }
 
                 state->Update();
-                const float r_2 = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+                const float r_2 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
                 if (threadIdx.x < (blockDim.x - 1) &&
                     sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x + 1] == sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x + 2] &&
                     r_2 < p_add)
@@ -126,7 +126,7 @@ namespace XXX_NAMESPACE
             if (threadIdx.y < (blockDim.y - 1))
             {
                 state->Update();
-                const float r_1 = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+                const float r_1 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
                 if (sub_lattice[threadIdx.y * n_sub_0 + threadIdx.x] == sub_lattice[(threadIdx.y + 1) * n_sub_0 + threadIdx.x] &&
                     r_1 < p_add)
                 {
@@ -134,7 +134,7 @@ namespace XXX_NAMESPACE
                 }
 
                 state->Update();
-                const float r_2 = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+                const float r_2 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
                 if (sub_lattice[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x] == sub_lattice[(threadIdx.y + 1) * n_sub_0 + blockIdx.x + threadIdx.x] &&
                     r_2 < p_add)
                 {
@@ -209,13 +209,13 @@ namespace XXX_NAMESPACE
 
             // Write back cluster.
             {
-                const std::int32_t a = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] % n_sub_0;
-                const std::int32_t b = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] / n_sub_0;
+                const std::uint32_t a = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] % n_sub_0;
+                const std::uint32_t b = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] / n_sub_0;
                 cluster[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x] = (by * n_sub_1 + b) * extent_0 + bx * n_sub_0 + a;
             }
             {
-                const std::int32_t a = sub_cluster[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] % n_sub_0;
-                const std::int32_t b = sub_cluster[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] / n_sub_0;
+                const std::uint32_t a = sub_cluster[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] % n_sub_0;
+                const std::uint32_t b = sub_cluster[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] / n_sub_0;
                 cluster[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + blockDim.x + threadIdx.x] = (by * n_sub_1 + b) * extent_0 + bx * n_sub_0 + a;
             }
         }   
@@ -235,8 +235,8 @@ namespace XXX_NAMESPACE
 
         //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
 
-        const std::int32_t extent_0 = lattice.Extent()[0];
-        const std::int32_t extent_1 = lattice.Extent()[1];
+        const std::uint32_t extent_0 = lattice.Extent()[0];
+        const std::uint32_t extent_1 = lattice.Extent()[1];
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};
@@ -256,9 +256,9 @@ namespace XXX_NAMESPACE
         {
             SafeCall(hipMemcpy(cluster.RawPointer(), gpu_cluster.get(), lattice.NumSites() * sizeof(LabelType), hipMemcpyDeviceToHost));
 
-            for (std::int32_t j = 0; j < extent_1; ++j)
+            for (std::uint32_t j = 0; j < extent_1; ++j)
             {
-                for (std::int32_t i = 0; i < extent_0; ++i)
+                for (std::uint32_t i = 0; i < extent_0; ++i)
                 {
                     std::cout << std::setw(3) << cluster[j][i] << " ";
                 }
@@ -309,30 +309,30 @@ namespace XXX_NAMESPACE
 
     template <typename Spin, typename LabelType, typename RngState>
     __global__
-    void MergeLabels_Kernel(const Spin* lattice, const std::int32_t extent_0, const std::int32_t extent_1,
-        const std::int32_t n_sub_0, const std::int32_t n_sub_1,
+    void MergeLabels_Kernel(const Spin* lattice, const std::uint32_t extent_0, const std::uint32_t extent_1,
+        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1,
         LabelType* cluster, RngState* rng_state, const float p_add)
     {
-        const std::int32_t n_0 = extent_0 / n_sub_0;
-        const std::int32_t n_1 = extent_1 / n_sub_1;
-        const std::int32_t n_total = n_0 * n_1;
+        const std::uint32_t n_0 = extent_0 / n_sub_0;
+        const std::uint32_t n_1 = extent_1 / n_sub_1;
+        const std::uint32_t n_total = n_0 * n_1;
 
         RngState* state = LoadRngState(rng_state);
 
-        for (std::int32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
         {
-            const std::int32_t bx = (n % n_0);
-            const std::int32_t by = (n / n_0);
+            const std::uint32_t bx = (n % n_0);
+            const std::uint32_t by = (n / n_0);
 
             state->Update();
-            const float r_1 = 2.3283064370807974e-10f * state->Get(threadIdx.x);
+            const float r_1 = 2.3283064370807974E-10F * state->Get(threadIdx.x);
             state->Update();
-            const float r_2 = 2.3283064370807974e-10f * state->Get(threadIdx.x);
+            const float r_2 = 2.3283064370807974E-10F * state->Get(threadIdx.x);
 
             if (threadIdx.x < n_sub_1)
             {
-                const std::int32_t idx = ((by * n_sub_1) + threadIdx.x) * extent_0 + (bx + 1) * n_sub_0 - 1;
-                const std::int32_t idx_p1 = idx + 1 - (bx == (n_0 - 1) ? extent_0 : 0);
+                const std::uint32_t idx = ((by * n_sub_1) + threadIdx.x) * extent_0 + (bx + 1) * n_sub_0 - 1;
+                const std::uint32_t idx_p1 = idx + 1 - (bx == (n_0 - 1) ? extent_0 : 0);
 
                 if (lattice[idx] == lattice[idx_p1] && r_1 < p_add)
                 {
@@ -345,8 +345,8 @@ namespace XXX_NAMESPACE
 
             if (threadIdx.x < n_sub_0)
             {
-                const std::int32_t idx = (((by + 1) * n_sub_1) - 1) * extent_0 + bx * n_sub_0 + threadIdx.x;
-                const std::int32_t idx_p2 = idx + extent_0 - (by == (n_1 - 1) ? extent_0 * extent_1 : 0);
+                const std::uint32_t idx = (((by + 1) * n_sub_1) - 1) * extent_0 + bx * n_sub_0 + threadIdx.x;
+                const std::uint32_t idx_p2 = idx + extent_0 - (by == (n_1 - 1) ? extent_0 * extent_1 : 0);
 
                 if (lattice[idx] == lattice[idx_p2] && r_2 < p_add)
                 {
@@ -370,12 +370,11 @@ namespace XXX_NAMESPACE
 
         HipContext& gpu = static_cast<HipContext&>(context);
         const std::uint32_t num_thread_blocks = gpu.Device().Concurrency();
-        //const std::uint32_t num_thread_blocks = 16;
 
         //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
 
-        const std::int32_t extent_0 = lattice.Extent()[0];
-        const std::int32_t extent_1 = lattice.Extent()[1];
+        const std::uint32_t extent_0 = lattice.Extent()[0];
+        const std::uint32_t extent_1 = lattice.Extent()[1];
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};
@@ -395,9 +394,9 @@ namespace XXX_NAMESPACE
         {
             SafeCall(hipMemcpy(cluster.RawPointer(), gpu_cluster.get(), lattice.NumSites() * sizeof(LabelType), hipMemcpyDeviceToHost));
 
-            for (std::int32_t j = 0; j < extent_1; ++j)
+            for (std::uint32_t j = 0; j < extent_1; ++j)
             {
-                for (std::int32_t i = 0; i < extent_0; ++i)
+                for (std::uint32_t i = 0; i < extent_0; ++i)
                 {
                     std::cout << std::setw(3) << cluster[j][i] << " ";
                 }
@@ -517,18 +516,18 @@ namespace XXX_NAMESPACE
 
     template <typename LabelType>
     __global__
-    void ResolveLabels_Kernel(LabelType* cluster, const std::int32_t extent_0, const std::int32_t extent_1,
-        const std::int32_t n_sub_0, const std::int32_t n_sub_1)
+    void ResolveLabels_Kernel(LabelType* cluster, const std::uint32_t extent_0, const std::uint32_t extent_1,
+        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1)
     {
-        const std::int32_t n_0 = extent_0 / n_sub_0;
-        const std::int32_t n_1 = extent_1 / n_sub_1;
-        const std::int32_t n_total = n_0 * n_1;
+        const std::uint32_t n_0 = extent_0 / n_sub_0;
+        const std::uint32_t n_1 = extent_1 / n_sub_1;
+        const std::uint32_t n_total = n_0 * n_1;
 
-        for (std::int32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
         {
-            const std::int32_t bx = (n % n_0);
-            const std::int32_t by = (n / n_0);
-            const std::int32_t idx = (by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x;
+            const std::uint32_t bx = (n % n_0);
+            const std::uint32_t by = (n / n_0);
+            const std::uint32_t idx = (by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x;
             /*
             LabelType c = cluster[idx];
             while (c != cluster[c])
@@ -557,7 +556,7 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::ResolveLabels(Context& context)
     {
-        static std::int32_t iteration = 0;
+        static std::uint32_t iteration = 0;
         //if (ran_already)
         //    return;
 
@@ -567,8 +566,8 @@ namespace XXX_NAMESPACE
 
         //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
 
-        const std::int32_t extent_0 = cluster.Extent()[0];
-        const std::int32_t extent_1 = cluster.Extent()[1];
+        const std::uint32_t extent_0 = cluster.Extent()[0];
+        const std::uint32_t extent_1 = cluster.Extent()[1];
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};
@@ -583,9 +582,9 @@ namespace XXX_NAMESPACE
         {
             SafeCall(hipMemcpy(cluster.RawPointer(), gpu_cluster.get(), extent_0 * extent_1 * sizeof(LabelType), hipMemcpyDeviceToHost));
 
-            for (std::int32_t j = 0; j < extent_1; ++j)
+            for (std::uint32_t j = 0; j < extent_1; ++j)
             {
-                for (std::int32_t i = 0; i < extent_0; ++i)
+                for (std::uint32_t i = 0; i < extent_0; ++i)
                 {
                     std::cout << std::setw(3) << cluster[j][i] << " ";
                 }
@@ -617,18 +616,18 @@ namespace XXX_NAMESPACE
 
     template <typename Spin, typename LabelType>
     __global__
-    void FlipClusters_Kernel(Spin* lattice, const std::int32_t extent_0, const std::int32_t extent_1,
-        const std::int32_t n_sub_0, const std::int32_t n_sub_1,
+    void FlipClusters_Kernel(Spin* lattice, const std::uint32_t extent_0, const std::uint32_t extent_1,
+        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1,
         const LabelType* cluster)
     {
-        const std::int32_t n_0 = extent_0 / n_sub_0;
-        const std::int32_t n_1 = extent_1 / n_sub_1;
-        const std::int32_t n_total = n_0 * n_1;
+        const std::uint32_t n_0 = extent_0 / n_sub_0;
+        const std::uint32_t n_1 = extent_1 / n_sub_1;
+        const std::uint32_t n_total = n_0 * n_1;
 
-        for (std::int32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
         {
-            const std::int32_t bx = (n % n_0);
-            const std::int32_t by = (n / n_0);
+            const std::uint32_t bx = (n % n_0);
+            const std::uint32_t by = (n / n_0);
 
             lattice[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x] ^=
                 (cluster[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x] & 0x1);
@@ -649,8 +648,8 @@ namespace XXX_NAMESPACE
 
         //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
 
-        const std::int32_t extent_0 = cluster.Extent()[0];
-        const std::int32_t extent_1 = cluster.Extent()[1];
+        const std::uint32_t extent_0 = cluster.Extent()[0];
+        const std::uint32_t extent_1 = cluster.Extent()[1];
 
         // Configure kernel launch.
         const dim3 grid{num_thread_blocks, 1, 1};

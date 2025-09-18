@@ -13,16 +13,16 @@ namespace XXX_NAMESPACE
         std::mutex m_init;
 
         // Prameters are taken from NUMERICAL RECIPES.
-        constexpr std::int32_t num_parameters = 5;
+        constexpr std::uint32_t num_parameters = 5;
         constexpr std::uint32_t parameters[num_parameters][2] = {
-            {1372383749u, 1289706101u},
-            {2891336453u, 1640531513u},
-            {2024337845u, 797082193u},
-            {32310901u, 626627237u},
-            {29943829u, 1013904223u}};
+            {1372383749U, 1289706101U},
+            {2891336453U, 1640531513U},
+            {2024337845U, 797082193U},
+            {32310901U, 626627237U},
+            {29943829U, 1013904223U}};
     }
 
-    template <std::int32_t WaveFrontSize>
+    template <std::uint32_t WaveFrontSize>
     LCG32_State<WaveFrontSize>::LCG32_State(std::uint32_t seed)
         :
         iteration(0)
@@ -30,7 +30,7 @@ namespace XXX_NAMESPACE
         Init(seed);
     }
 
-    template <std::int32_t WaveFrontSize>
+    template <std::uint32_t WaveFrontSize>
     void LCG32_State<WaveFrontSize>::Init(const std::uint32_t seed)
     {
         // Random initialization of the first lcg.
@@ -39,22 +39,22 @@ namespace XXX_NAMESPACE
             srand48(seed);
 
             // Random assignment of parameters to concurrent lcgs.
-            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+            for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
             {
-                const std::int32_t select = static_cast<std::int32_t>(1000.0 * drand48()) % num_parameters;
+                const std::uint32_t select = static_cast<std::uint32_t>(1000.0 * drand48()) % num_parameters;
                 a[i] = parameters[select][0];
                 c[i] = parameters[select][1];
             }
 
-            state[0] = a[0] * (static_cast<std::uint32_t>(0xEFFFFFFFu * drand48()) + 1) + c[0];
+            state[0] = a[0] * (static_cast<std::uint32_t>(0xEFFFFFFFU * drand48()) + 1) + c[0];
         }
 
         // The n-th lcg is initialized using the state of the (n - 1)-th lcg.
-        for (std::int32_t i = 1; i < WaveFrontSize; ++i)
+        for (std::uint32_t i = 1; i < WaveFrontSize; ++i)
             state[i] = a[i] * state[i - 1] + c[i];
     }
 
-    template <std::int32_t WaveFrontSize>
+    template <std::uint32_t WaveFrontSize>
     void LCG32_State<WaveFrontSize>::Update()
     {
         #if defined(RANDOM_SHUFFLE_STATE)
@@ -62,30 +62,30 @@ namespace XXX_NAMESPACE
         std::uint32_t buffer[WaveFrontSize];
         if (((++iteration) % shuffle_distance) == 0)
         {
-            constexpr std::int32_t m = WaveFrontSize - 1;
-            const std::int32_t shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
+            constexpr std::uint32_t m = WaveFrontSize - 1;
+            const std::uint32_t shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
 
             #pragma omp simd
-            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+            for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
                 buffer[i] = a[(i + shuffle_val) & m];
 
             #pragma omp simd
-            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+            for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
                 a[i] = buffer[i];
 
             #pragma omp simd
-            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+            for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
                 buffer[i] = c[(i + shuffle_val) & m];
 
             #pragma omp simd
-            for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+            for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
                 c[i] = buffer[i];
         }
         #endif
 
         // Update internal state.
         #pragma omp simd
-        for (std::int32_t i = 0; i < WaveFrontSize; ++i)
+        for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
             state[i] = a[i] * state[i] + c[i];
     }
 
@@ -118,7 +118,7 @@ namespace XXX_NAMESPACE
     float LCG32<DeviceName::CPU>::NextReal()
     {
         // Convert integer to float over [0.0, 1.0].
-        return 2.3283064370807974e-10f * NextInteger();
+        return 2.3283064370807974E-10F * NextInteger();
     }
 
     void LCG32<DeviceName::CPU>::NextInteger(std::uint32_t* ptr, const std::size_t n)
@@ -129,7 +129,7 @@ namespace XXX_NAMESPACE
             state.Update();
 
             #pragma omp simd
-            for (std::int32_t ii = 0; ii < WaveFrontSize; ++ii)
+            for (std::uint32_t ii = 0; ii < WaveFrontSize; ++ii)
                 ptr[i + ii] = state[ii];
         }
 
@@ -146,7 +146,7 @@ namespace XXX_NAMESPACE
 
         // Convert integer to float over [0.0, 1.0].
         for (std::size_t i = 0; i < n; ++i)
-            ptr[i] = 2.3283064370807974e-10f * i_ptr[i];
+            ptr[i] = 2.3283064370807974E-10F * i_ptr[i];
     }
 
     template class LCG32_State<CPU::WavefrontSize<std::uint32_t>()>;

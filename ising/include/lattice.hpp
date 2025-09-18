@@ -15,17 +15,17 @@
 
 namespace XXX_NAMESPACE
 {
-    template <std::int32_t Dimension, template <DeviceName> typename RNG, DeviceName Target>
+    template <std::uint32_t Dimension, template <DeviceName> typename RNG, DeviceName Target>
     class LatticeMonteCarloAlgorithm;
 
-    template <std::int32_t Dimension>
+    template <std::uint32_t Dimension>
     class Lattice final
     {
         public:
             using Spin = std::uint8_t;
 
         public:
-            Lattice(const std::array<std::int32_t, Dimension>& extent);
+            Lattice(const std::array<std::uint32_t, Dimension>& extent);
 
             const auto& Extent() const { return extent; }
             auto NumSites() const { return num_sites; }
@@ -82,7 +82,7 @@ namespace XXX_NAMESPACE
                 return target;
             }
 
-            const std::array<std::int32_t, Dimension> extent;
+            const std::array<std::uint32_t, Dimension> extent;
             const std::size_t num_sites;
             MultiDimensionalArray<Spin, Dimension> spins;
 

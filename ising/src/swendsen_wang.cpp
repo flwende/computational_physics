@@ -13,11 +13,11 @@ namespace XXX_NAMESPACE
     namespace
     {
         template <DeviceName Target>
-        std::array<std::int32_t, 2> GetTileSize(const std::int32_t wavefront_size)
+        std::array<std::uint32_t, 2> GetTileSize(const std::uint32_t wavefront_size)
         {
             if constexpr (Target == DeviceName::CPU)
             {
-                return {GetEnv("TILE_SIZE_X", wavefront_size), GetEnv("TILE_SIZE_Y", 8)};
+                return {GetEnv("TILE_SIZE_X", wavefront_size), GetEnv("TILE_SIZE_Y", 8U)};
             }
             else
             {
@@ -32,24 +32,24 @@ namespace XXX_NAMESPACE
         target(target),
         tile_size(GetTileSize<Target>(WavefrontSize))
     {
-        const std::int32_t concurrency = target.Concurrency();
+        const std::uint32_t concurrency = target.Concurrency();
 #if defined __HIPCC__
     #if (defined(__GFX10__) || defined(__GFX11__))
-        const std::int32_t num_rngs = concurrency;
+        const std::uint32_t num_rngs = concurrency;
     #else
     #endif
 #else
-        const std::int32_t num_rngs = concurrency;
+        const std::uint32_t num_rngs = concurrency;
 #endif
 
         rng_state.reserve(num_rngs);
-        for (std::int32_t i = 0; i < num_rngs; ++i)
+        for (std::uint32_t i = 0; i < num_rngs; ++i)
             rng_state.emplace_back(i + 1);
 
         if constexpr (Target == DeviceName::CPU)
         {
             rng.reserve(num_rngs);
-            for (std::int32_t i = 0; i < num_rngs; ++i)
+            for (std::uint32_t i = 0; i < num_rngs; ++i)
                 rng.emplace_back(new RNG<Target>(rng_state[i]));
         }
 #if defined __HIPCC__

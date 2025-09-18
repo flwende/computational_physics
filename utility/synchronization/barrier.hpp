@@ -31,7 +31,7 @@ namespace XXX_NAMESPACE
                 Reset(expected);
             }
 
-            void Reset(const std::int32_t new_expected)
+            void Reset(const std::uint32_t new_expected)
             {
                 assert(new_expected > 0 && "Barrier::expected must be > 0.");
 

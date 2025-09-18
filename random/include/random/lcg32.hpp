@@ -23,7 +23,7 @@ namespace XXX_NAMESPACE
     template <DeviceName Type>
     class LCG32;
 
-    template <std::int32_t WaveFrontSize>
+    template <std::uint32_t WaveFrontSize>
     class LCG32_State
     {
         template <DeviceName> friend class LCG32;
@@ -49,16 +49,16 @@ namespace XXX_NAMESPACE
             std::uint32_t c[WaveFrontSize];
 
             // Number of updates of the internal state already performed.
-            std::int32_t iteration;
+            std::uint32_t iteration;
 
             // Number of updates of the internal state after which the concurrent lcgs exchange their parameters.
-            static constexpr std::int32_t shuffle_distance = 15;
+            static constexpr std::uint32_t shuffle_distance = 15;
     };
 
     template <>
     class alignas(128) LCG32<DeviceName::CPU> : public RandomNumberGenerator
     {
-        static constexpr std::int32_t WaveFrontSize = CPU::WavefrontSize<std::uint32_t>();
+        static constexpr std::uint32_t WaveFrontSize = CPU::WavefrontSize<std::uint32_t>();
 
         public:
             using State = LCG32_State<WaveFrontSize>;
@@ -91,14 +91,14 @@ namespace XXX_NAMESPACE
             State state;
 
             // Current element in the buffer to be accessed next.
-            std::int32_t current {0};
+            std::uint32_t current {0};
     };
 
 #if defined __HIPCC__
     template <>
     class alignas(128) LCG32<DeviceName::AMD_GPU> : public RandomNumberGenerator
     {
-        static constexpr std::int32_t WaveFrontSize = AMD_GPU::WavefrontSize();
+        static constexpr std::uint32_t WaveFrontSize = AMD_GPU::WavefrontSize();
 
         public:
             using State = LCG32_State<WaveFrontSize>;

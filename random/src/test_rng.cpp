@@ -19,14 +19,14 @@ constexpr std::size_t BenchmarkIterations {16UL * 1000 * 1000 * 1024};
 
 // Returns elapsed time in seconds for running the benchmark.
 template <template <DeviceName> typename RNG, DeviceName Target>
-std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations);
+std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations);
 
 // Main program
 int main(int argc, char** argv)
 {
     std::string rng_name {"lcg32"};
     std::string target_name {"cpu"};
-    std::int32_t reporting_id {0};
+    std::uint32_t reporting_id {0};
 
     // Display help if requested
     if (argc > 1 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h"))
@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     }
 
     // Parse command line arguments in format --key=value
-    for (int i = 1; i < argc; ++i) {
+    for (std::uint32_t i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         auto pos = arg.find('=');
         if (pos != std::string::npos) {

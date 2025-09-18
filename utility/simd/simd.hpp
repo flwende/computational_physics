@@ -77,7 +77,7 @@ namespace XXX_NAMESPACE
         template <>                                                 \
         struct Type<T>                                              \
         {                                                           \
-            static constexpr std::int32_t width = WIDTH;            \
+            static constexpr std::uint32_t width = WIDTH;           \
         };
 
         MACRO(double, SIMD_WIDTH_NATIVE_64BIT)

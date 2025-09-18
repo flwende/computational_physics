@@ -8,7 +8,7 @@
 
 namespace XXX_NAMESPACE
 {
-    enum class MemoryKind : std::int32_t
+    enum class MemoryKind : std::uint32_t
     {
         Heap = 1,
         Stack = 2

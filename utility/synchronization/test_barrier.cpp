@@ -16,8 +16,8 @@ static Barrier barrier;
 
 int main(int argc, char** argv)
 {
-    const std::int32_t num_iterations = (argc > 1 ? std::atoi(argv[1]) : 1);
-    const std::int32_t num_threads = (argc > 2 ? std::atoi(argv[2]) : 1);
+    const std::uint32_t num_iterations = (argc > 1 ? std::atoi(argv[1]) : 1);
+    const std::uint32_t num_threads = (argc > 2 ? std::atoi(argv[2]) : 1);
 
     std::cout << "Threads: " << num_threads << std::endl;
     std::cout << "Iteartions: " << num_iterations << std::endl;
@@ -25,15 +25,15 @@ int main(int argc, char** argv)
 
     barrier.Reset(num_threads);
 
-    auto kernel = [] (const std::int32_t num_iterations)
+    auto kernel = [] (const std::uint32_t num_iterations)
         {            
-            for (std::int32_t i = 0; i < num_iterations; ++i)
+            for (std::uint32_t i = 0; i < num_iterations; ++i)
                 barrier.Wait();
         };
 
     std::vector<std::thread> threads;
     threads.reserve(num_threads - 1);
-    for (std::int32_t i = 0; i < (num_threads - 1); ++i)
+    for (std::uint32_t i = 0; i < (num_threads - 1); ++i)
         threads.emplace_back(kernel, num_iterations + 1);
     barrier.Wait();
 
@@ -43,11 +43,11 @@ int main(int argc, char** argv)
     auto endtime = std::chrono::high_resolution_clock::now();
 
     // Reporting.
-    const double elapsed_time_ms = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-3;
+    const double elapsed_time_ms = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-3;
     std::cout << "Time per iteration: " << elapsed_time_ms / num_iterations << "ms" << std::endl;
 
     for (auto& thread : threads)
         thread.join();
-    
+
     return 0;
 }

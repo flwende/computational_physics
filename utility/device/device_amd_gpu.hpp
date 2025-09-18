@@ -34,7 +34,7 @@ namespace XXX_NAMESPACE
             static constexpr DeviceName Name() { return DeviceName::AMD_GPU; }
 
             template <typename T = void>
-            static constexpr std::int32_t WavefrontSize()
+            static constexpr std::uint32_t WavefrontSize()
             {
                 // Wavefront size is architecture specific.
                 #if defined(__GFX10__) || defined(__GFX11__)

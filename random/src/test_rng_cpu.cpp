@@ -13,7 +13,7 @@
 
 using namespace XXX_NAMESPACE;
 
-constexpr std::int32_t Buffersize {64};
+constexpr std::uint32_t Buffersize {64};
 
 namespace
 {
@@ -31,7 +31,7 @@ namespace
 }
 
 template <template <DeviceName> typename RNG, DeviceName Target>
-std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations)
+std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id, const std::pair<std::size_t, std::size_t> iterations)
 {
     static_assert(Target == DeviceName::CPU, "Target must be CPU.");
 
@@ -66,4 +66,4 @@ std::pair<double, std::vector<float>> Benchmark(const std::int32_t reporting_id,
 }
 
 // Explicit instantiation.
-template std::pair<double, std::vector<float>> Benchmark<LCG32, DeviceName::CPU>(const std::int32_t, const std::pair<std::size_t, std::size_t>);
+template std::pair<double, std::vector<float>> Benchmark<LCG32, DeviceName::CPU>(const std::uint32_t, const std::pair<std::size_t, std::size_t>);

@@ -8,7 +8,7 @@
 
 namespace XXX_NAMESPACE
 {
-    enum class DeviceName : std::int32_t
+    enum class DeviceName : std::uint32_t
     {
         CPU = 1,
         AMD_GPU = 2

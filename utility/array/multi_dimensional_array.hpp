@@ -26,7 +26,7 @@ namespace XXX_NAMESPACE
             Accessor<T, Dimension> accessor;
 
         public:
-            explicit NonOwningMultiDimensionalArray(T* external_ptr, const std::array<std::int32_t, Dimension>& extent) noexcept
+            explicit NonOwningMultiDimensionalArray(T* external_ptr, const std::array<std::uint32_t, Dimension>& extent) noexcept
                 :
                 accessor(external_ptr, extent)
             {}
@@ -54,13 +54,13 @@ namespace XXX_NAMESPACE
             ManagedMemory::Pointer<T> ptr {};
 
         public:
-            explicit NonOwningMultiDimensionalArray(ManagedMemory& memory, const std::array<std::int32_t, Dimension>& extent)
+            explicit NonOwningMultiDimensionalArray(ManagedMemory& memory, const std::array<std::uint32_t, Dimension>& extent)
                 :
                 NonOwningMultiDimensionalArray(std::move(memory.Allocate<T>(Accumulate<std::multiplies<std::size_t>>(extent, 1UL))), extent)
             {}
 
         protected:
-            NonOwningMultiDimensionalArray(ManagedMemory::Pointer<T>&& ptr, const std::array<std::int32_t, Dimension>& extent)
+            NonOwningMultiDimensionalArray(ManagedMemory::Pointer<T>&& ptr, const std::array<std::uint32_t, Dimension>& extent)
                 :
                 Base(ptr.Get(), extent),
                 ptr(std::move(ptr))
@@ -79,7 +79,7 @@ namespace XXX_NAMESPACE
         public:
             MultiDimensionalArray() noexcept = default;
 
-            explicit MultiDimensionalArray(const std::array<std::int32_t, Dimension>& extent)
+            explicit MultiDimensionalArray(const std::array<std::uint32_t, Dimension>& extent)
                 :
                 data(std::make_unique<T[]>(Accumulate<std::multiplies<std::size_t>>(extent, 1UL))),
                 span(data.get(), extent)
@@ -101,7 +101,7 @@ namespace XXX_NAMESPACE
             auto operator[](const std::int32_t index) -> decltype(span[0]) { return span[index]; }
             auto operator[](const std::int32_t index) const -> decltype(span[0]) { return span[index]; }
 
-            void Resize(const std::array<std::int32_t, Dimension>& extent)
+            void Resize(const std::array<std::uint32_t, Dimension>& extent)
             {
                 MultiDimensionalArray tmp(extent);
                 std::swap(*this, tmp);

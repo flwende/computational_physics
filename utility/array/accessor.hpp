@@ -38,13 +38,13 @@ namespace XXX_NAMESPACE
 
         private:
             T* ptr {};
-            std::array<std::int32_t, Dimension> extent {};
+            std::array<std::uint32_t, Dimension> extent {};
             std::size_t hyper_plane_size {};
 
         public:
             Accessor() = default;
 
-            explicit Accessor(T* ptr, const std::array<std::int32_t, Dimension>& extent) noexcept
+            explicit Accessor(T* ptr, const std::array<std::uint32_t, Dimension>& extent) noexcept
                 :
                 ptr(ptr),
                 extent(extent),

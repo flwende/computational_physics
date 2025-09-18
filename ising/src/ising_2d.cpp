@@ -21,26 +21,26 @@ Absolute magnetization per site: -0.324382
 
 using namespace XXX_NAMESPACE;
 
-static constexpr std::int32_t n_warmup = 1000;
+static constexpr std::uint32_t n_warmup = 1000;
 //static constexpr std::int32_t n_warmup = 1;
-static constexpr std::int32_t n_sep = 10;
+static constexpr std::uint32_t n_sep = 10;
 //static constexpr std::int32_t n_sep = 1;
 
 namespace defaults
 {
-    static constexpr std::int32_t n_0 = 32;
-    static constexpr std::int32_t n_1 = 32;
+    static constexpr std::uint32_t n_0 = 32;
+    static constexpr std::uint32_t n_1 = 32;
     static constexpr float temperature = 2.2691853142130221f;
-    static constexpr std::int32_t n_sweeps = n_sep * 10000;
+    static constexpr std::uint32_t n_sweeps = n_sep * 10000;
 }
 
 int main(int argc, char **argv)
 {
     // Initialize defaults
-    std::int32_t n_0 {defaults::n_0};
-    std::int32_t n_1 {defaults::n_1};
+    std::uint32_t n_0 {defaults::n_0};
+    std::uint32_t n_1 {defaults::n_1};
     float temperature {defaults::temperature};
-    std::int32_t n_sweeps {defaults::n_sweeps};
+    std::uint32_t n_sweeps {defaults::n_sweeps};
     std::string algorithm {"swendsen_wang"};
     std::string rng_name {"lcg32"};
     std::string target_name {"cpu"};
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     }
 
     // Parse command line arguments in format --key=value.
-    for (int i = 1; i < argc; ++i)
+    for (std::uint32_t i = 1; i < argc; ++i)
     {
         const std::string arg = argv[i];
         if (const auto pos = arg.find('='); pos != std::string::npos)
@@ -97,13 +97,13 @@ int main(int argc, char **argv)
     std::cout << "Target name: " << (target->Name() == DeviceName::CPU ? "CPU" : "AMD GPU") << std::endl;
 
     // Update kernel: resolve parameters and set up call.
-    auto kernel = [&] <typename DeviceType> (DeviceType& target, const std::int32_t iterations)
+    auto kernel = [&] <typename DeviceType> (DeviceType& target, const std::uint32_t iterations)
         {
             if (rng_name == "lcg32")
             {
                 if (algorithm == "swendsen_wang")
                 {
-                    for (std::int32_t i = 0; i < iterations; ++i)
+                    for (std::uint32_t i = 0; i < iterations; ++i)
                         lattice.Update<SwendsenWang_2D, LCG32>(temperature, target);
                 }
                 else
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
     double magnetization = 0.0;
     const auto starttime = std::chrono::high_resolution_clock::now();
     {
-        for (std::int32_t i = 0; i < n_sweeps; i += n_sep)
+        for (std::uint32_t i = 0; i < n_sweeps; i += n_sep)
         {
             // Take measurements every n_sep update steps.
             DispatchCall(target_name, *target, kernel, n_sep);
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
         }
     }
     const auto endtime = std::chrono::high_resolution_clock::now();
-    const double elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-6;
+    const double elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-6;
 
     // Output the update time per site ..
     std::cout << "Update time per site (lattice = " << n_0 << " x " << n_1 << "): ";

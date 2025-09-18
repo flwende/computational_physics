@@ -45,7 +45,7 @@ namespace XXX_NAMESPACE
 
                 active = true;
                 threads.reserve(num_threads - 1);
-                for (std::int32_t id = 1; id < num_threads; ++id)
+                for (std::uint32_t id = 1; id < num_threads; ++id)
                     threads.emplace_back([this] (const std::uint32_t thread_id) { Run(thread_id); }, id);
 
                 // Give threads some time to spin up.

@@ -11,7 +11,7 @@
 
 namespace XXX_NAMESPACE
 {
-    template <std::int32_t Dimension,
+    template <std::uint32_t Dimension,
         template <DeviceName> typename RNG,
         DeviceName Target>
     class LatticeMonteCarloAlgorithm

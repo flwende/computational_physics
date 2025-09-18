@@ -23,7 +23,7 @@ namespace XXX_NAMESPACE
     //  void bar(ManagedMemory& stack_memory, A a) {
     //      auto data = stack_memory.Get<std::uint32_t>(a.Elements()); 
     //      ..
-    //      for (std::int32_t i = 0; i < a.Elements(); ++i)
+    //      for (std::uint32_t i = 0; i < a.Elements(); ++i)
     //          data[i] = ..;
     //      ..
     //  }

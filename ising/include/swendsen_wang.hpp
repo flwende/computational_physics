@@ -33,13 +33,7 @@ namespace XXX_NAMESPACE
 
         using DeviceType = typename Device<Target>::Type;
 
-        static constexpr std::int32_t WavefrontSize = DeviceType::template WavefrontSize<LabelType>();
-        //static constexpr std::int32_t Chunk_1 = 8;
-        ///static constexpr std::int32_t Chunk_0 = (Target == DeviceName::CPU ? WavefrontSize : WavefrontSize / Chunk_1);
-
-        // Tile size for parallel processing: the innermost dimension should be a
-        // multiple of the SIMD width of the target platform.
-        //static constexpr std::int32_t chunk[2] = {Chunk_0, Chunk_1};
+        static constexpr std::uint32_t WavefrontSize = DeviceType::template WavefrontSize<LabelType>();
 
         public:
             SwendsenWang_2D(DeviceType& target);
@@ -60,12 +54,12 @@ namespace XXX_NAMESPACE
             // Sep 4: flip clusters individually
             void Update(Lattice<2>& lattice, const float temperature) override;
 
-            static constexpr std::int32_t Dimension = 2;
+            static constexpr std::uint32_t Dimension = 2;
 
         protected:
             // Connected component labeling (ccl) based on an idea of Coddington and Baillie within tiles.
-            template <std::int32_t N_0 = 0>
-            void CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<int32_t, 2>& n_offset, const std::array<int32_t, 2>& n_sub);
+            template <std::uint32_t N_0 = 0>
+            void CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<uint32_t, 2>& n_offset, const std::array<uint32_t, 2>& n_sub);
 
             // Loop over all tiles of the lattice and apply ccl_selflabeling.
             // Parameter p_add is the probability for adding aligned nearest
@@ -88,7 +82,7 @@ namespace XXX_NAMESPACE
 
             DeviceType& target;
             MultiDimensionalArray<LabelType, 2> cluster;
-            const std::array<std::int32_t, 2> tile_size;
+            const std::array<std::uint32_t, 2> tile_size;
 
             // Random number generator: if you use the lcg32 generator, make sure you are
             // compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers might have too low quality).

@@ -33,7 +33,7 @@ namespace XXX_NAMESPACE
             static constexpr DeviceName Name() { return DeviceName::CPU; }
 
             template <typename T>
-            static constexpr std::int32_t WavefrontSize() { return simd::Type<T>::width; }
+            static constexpr std::uint32_t WavefrontSize() { return simd::Type<T>::width; }
 
             template <typename Func, typename ...Args>
             void Execute(Func&& func, Args&&... args)
