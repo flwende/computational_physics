@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "environment/environment.hpp"
-#include "hip/hip.hpp"
+#include "execution/hip_context.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
