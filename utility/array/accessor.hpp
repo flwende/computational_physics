@@ -39,76 +39,58 @@ namespace XXX_NAMESPACE
 
         private:
             T* ptr {};
-            std::array<std::int32_t, Dimension> extent;
-            std::size_t total_elements {};
+            std::array<std::int32_t, Dimension> extent {};
+            std::size_t hyper_plane_size {};
 
         public:
             Accessor() = default;
 
-            explicit Accessor(T* ptr, const std::array<std::int32_t, Dimension>& extent)
+            explicit Accessor(T* ptr, const std::array<std::int32_t, Dimension>& extent) noexcept
                 :
                 ptr(ptr),
                 extent(extent),
-                total_elements(std::accumulate(std::begin(extent), std::end(extent), 1, std::multiplies<std::size_t>()))
+                hyper_plane_size(std::accumulate(std::begin(extent), std::end(extent) - 1, 1, std::multiplies<std::size_t>()))
             {
                 assert(ptr != nullptr && "Accessor expects a non-null pointer.");
             }
 
-            Accessor(const Accessor&) = default;
-            Accessor& operator=(const Accessor&) = default;
+            Accessor(const Accessor&) noexcept = default;
+            Accessor& operator=(const Accessor&) noexcept = default;
 
-            Accessor(Accessor&& other) noexcept
-                :
-                ptr(other.ptr), extent(other.extent)
+            Accessor(Accessor&& other) noexcept = default;
+            Accessor& operator=(Accessor&& other) noexcept = default;
+
+            const auto& Extent() const noexcept { return extent; }
+            auto TotalElements() const noexcept { return hyper_plane_size * extent[Dimension - 1]; }
+
+            T* RawPointer() noexcept { return ptr; }
+            const T* RawPointer() const noexcept { return ptr; }
+
+            ReturnType operator[](const std::int32_t index)
             {
-                other.ptr = {};
-                other.extent = {};
-                other.total_elements = {};
-            }
+                assert(index >= 0 && index < extent[Dimension - 1] && "Out of bounds array access.");
 
-            Accessor& operator=(Accessor&& other) noexcept
-            {
-                if (this != &other)
-                {
-                    ptr = other.ptr;
-                    extent = other.extent;
-                    total_elements = other.total_elements;
-                    other.ptr = {};
-                    other.extent = {};
-                    other.total_elements = {};
-                }
-                return *this;
-            }
-
-            const auto& Extent() const { return extent; }
-            auto TotalElements() const { return total_elements; }
-
-            T* RawPointer() { return ptr; }
-            const T* RawPointer() const { return ptr; }
-
-            inline ReturnType operator[](const std::int32_t index)
-            {
                 if constexpr (Dimension == 1)
                 {
                     return ptr[index];
                 }
                 else
                 {
-                    const std::size_t n = std::accumulate(std::begin(extent), std::end(extent) - 1, 1, std::multiplies<std::size_t>());
-                    return ReturnType(&ptr[index * n], Extract<Dimension - 1>(extent));
+                    return ReturnType(&ptr[index * hyper_plane_size], Extract<Dimension - 1>(extent));
                 }
             }
 
-            inline ConstReturnType operator[](const std::int32_t index) const
+            ConstReturnType operator[](const std::int32_t index) const
             {
+                assert(index >= 0 && index < extent[Dimension - 1] && "Out of bounds array access.");
+
                 if constexpr (Dimension == 1)
                 {
                     return ptr[index];
                 }
                 else
                 {
-                    const std::size_t n = std::accumulate(std::begin(extent), std::end(extent) - 1, 1, std::multiplies<std::size_t>());
-                    return ConstReturnType(&ptr[index * n], Extract<Dimension - 1>(extent));
+                    return ConstReturnType(&ptr[index * hyper_plane_size], Extract<Dimension - 1>(extent));
                 }
             }
     };

@@ -42,12 +42,12 @@ namespace XXX_NAMESPACE
     };
 
     template <typename T, std::uint32_t Dimension>
-    class MultiDimensionalArray : public NonOwningMultiDimensionalArray<T, Dimension>
+    class MultiDimensionalArray final : public NonOwningMultiDimensionalArray<T, Dimension>
     {
         using Base = NonOwningMultiDimensionalArray<T, Dimension>;
         using PointerType = std::unique_ptr<T[]>;
 
-        protected:
+        private:
             PointerType data;
 
         public:
