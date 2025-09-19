@@ -27,11 +27,11 @@ namespace XXX_NAMESPACE
                 context(1 /* number of GPUs */, device_id, *this)
             {}
 
-            bool IsOffloadDevice() const override { return true; }
+            bool IsOffloadDevice() const noexcept override { return true; }
 
-            std::uint32_t Concurrency() const override { return concurrency; }
+            std::uint32_t Concurrency() const noexcept override { return concurrency; }
 
-            static constexpr DeviceName Name() { return DeviceName::AMD_GPU; }
+            static constexpr auto Name() noexcept { return DeviceName::AMD_GPU; }
 
             template <typename T = void>
             static constexpr std::uint32_t WavefrontSize()

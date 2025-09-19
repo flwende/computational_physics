@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -65,9 +66,10 @@ namespace XXX_NAMESPACE
             auto RawPointer() noexcept { return ptr; }
             auto RawPointer() const noexcept { return ptr; }
 
+            // Peel off the current dimension.
             ReturnType operator[](const std::int32_t index)
             {
-                assert(index >= 0 && index < extent[Dimension - 1] && "Out of bounds array access.");
+                assert(index >= 0 && index < static_cast<std::int32_t>(extent[Dimension - 1]) && "Out of bounds array access.");
 
                 if constexpr (Dimension == 1)
                 {
@@ -81,7 +83,7 @@ namespace XXX_NAMESPACE
 
             ConstReturnType operator[](const std::int32_t index) const
             {
-                assert(index >= 0 && index < extent[Dimension - 1] && "Out of bounds array access.");
+                assert(index >= 0 && index < static_cast<std::int32_t>(extent[Dimension - 1]) && "Out of bounds array access.");
 
                 if constexpr (Dimension == 1)
                 {

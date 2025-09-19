@@ -1,12 +1,10 @@
 #pragma once
 
 #include <array>
-#include <cstdlib>
 #include <cstdint>
 #include <vector>
 
 #include "array/multi_dimensional_array.hpp"
-#include "atomic/atomic.hpp"
 #include "random/random.hpp"
 #include "simd/simd.hpp"
 #include "lattice_mc.hpp"
@@ -30,10 +28,25 @@ namespace XXX_NAMESPACE
     {
         // Set to std::uint64_t if more then 4 billion labels.
         using LabelType = std::uint32_t;
-
         using DeviceType = typename Device<Target>::Type;
+        using RngState = typename RNG<Target>::State;
 
-        static constexpr std::uint32_t WavefrontSize = DeviceType::template WavefrontSize<LabelType>();
+        protected:
+            DeviceType& target;
+            MultiDimensionalArray<LabelType, 2> cluster {};
+            const std::array<std::uint32_t, 2> tile_size {};
+
+            // Random number generator: if you use the lcg32 generator, make sure you are
+            // compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers might have too low quality).
+            std::vector<RngState> rng_state;
+            std::vector<std::shared_ptr<RandomNumberGenerator>> rng;
+
+#if defined __HIPCC__
+            GpuPointer<LabelType> gpu_cluster {};
+            GpuPointer<RngState> gpu_rng_state {};
+#endif
+
+            static constexpr std::uint32_t WavefrontSize = DeviceType::template WavefrontSize<LabelType>();
 
         public:
             SwendsenWang_2D(DeviceType& target);
@@ -80,22 +93,9 @@ namespace XXX_NAMESPACE
             // Flip clusters.
             void FlipClusters(Context& context, Lattice<2>& lattice);
 
-            DeviceType& target;
-            MultiDimensionalArray<LabelType, 2> cluster;
-            const std::array<std::uint32_t, 2> tile_size;
-
-            // Random number generator: if you use the lcg32 generator, make sure you are
-            // compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers might have too low quality).
-            using RngState = typename RNG<Target>::State;
-            std::vector<RngState> rng_state;
-            std::vector<std::shared_ptr<RandomNumberGenerator>> rng;
-
 #if defined __HIPCC__
-            GpuPointer<RngState> gpu_rng_state;
-            void InitializeGpuRngState();
-
-            GpuPointer<LabelType> gpu_cluster;
             void InitializeGpuCluster(const LabelType num_sites);
+            void InitializeGpuRngState();
 #endif
     };
 }

@@ -14,8 +14,8 @@
 
 using namespace XXX_NAMESPACE;
 
-constexpr std::size_t WarmupIterations {1UL * 1000 * 1024};
-constexpr std::size_t BenchmarkIterations {16UL * 1000 * 1000 * 1024};
+constexpr auto WarmupIterations = std::size_t{1UL * 1000 * 1024};
+constexpr auto BenchmarkIterations = std::size_t{16UL * 1000 * 1000 * 1024};
 
 // Returns elapsed time in seconds for running the benchmark.
 template <template <DeviceName> typename RNG, DeviceName Target>
@@ -24,9 +24,9 @@ std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id
 // Main program
 int main(int argc, char** argv)
 {
-    std::string rng_name {"lcg32"};
-    std::string target_name {"cpu"};
-    std::uint32_t reporting_id {0};
+    auto rng_name = std::string{"lcg32"};
+    auto target_name = std::string{"cpu"};
+    auto reporting_id = std::uint32_t{0};
 
     // Display help if requested
     if (argc > 1 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h"))
@@ -44,12 +44,13 @@ int main(int argc, char** argv)
     }
 
     // Parse command line arguments in format --key=value
-    for (std::uint32_t i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
+    const auto num_cmd_args = static_cast<std::uint32_t>(argc);
+    for (std::uint32_t i = 1; i < num_cmd_args; ++i) {
+        const auto arg = std::string{argv[i]};
         auto pos = arg.find('=');
         if (pos != std::string::npos) {
-            const std::string key = arg.substr(0, pos);
-            const std::string value = arg.substr(pos + 1);
+            const auto key = arg.substr(0, pos);
+            const auto value = arg.substr(pos + 1);
             if (key == "--rng")
                 rng_name = value;
             else if (key == "--target")
@@ -88,7 +89,7 @@ int main(int argc, char** argv)
         std::cout << number << " ";
     std::cout << std::endl;
 
-    const double time_per_random_number = (elapsed_time_s / BenchmarkIterations);
+    const auto time_per_random_number = (elapsed_time_s / BenchmarkIterations);
     std::cout << "Time per random number = " << time_per_random_number * 1.0e9 << " ns" << std::endl;
     std::cout << "Billion random numbers per second = " << (1.0 / (time_per_random_number * 1.0e9)) << std::endl;
 

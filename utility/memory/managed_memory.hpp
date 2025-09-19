@@ -1,7 +1,5 @@
 #pragma once
 
-#include <iostream>
-
 #include <cassert>
 #include <cstdint>
 #include <cstddef>
@@ -48,7 +46,7 @@ namespace XXX_NAMESPACE
                     ManagedMemory& memory;
 
                 public:
-                    explicit Pointer(T* ptr, const std::uint32_t count, ManagedMemory& memory)
+                    explicit Pointer(T* ptr, const std::uint32_t count, ManagedMemory& memory) noexcept
                         :
                         ptr(ptr), count(count), memory(memory)
                     {}
@@ -63,9 +61,7 @@ namespace XXX_NAMESPACE
 
                     Pointer(Pointer&& other) noexcept
                         :
-                        ptr(other.ptr),
-                        count(other.count),
-                        memory(other.memory)
+                        ptr(other.ptr), count(other.count), memory(other.memory)
                     {
                         if (this != &other)
                         {
@@ -76,19 +72,19 @@ namespace XXX_NAMESPACE
 
                     Pointer& operator=(Pointer&&) noexcept = default;
 
-                    auto Get() { return ptr; }
-                    const auto Get() const { return ptr; }
+                    auto Get() noexcept { return ptr; }
+                    auto Get() const noexcept { return ptr; }
             };
 
-        protected:
+        private:
             std::byte* ptr {};
             std::uint32_t managed_memory_bytes {};
             std::uint32_t memory_bytes_used {};
 
         public:
-            ManagedMemory() = default;
+            ManagedMemory() noexcept = default;
 
-            ManagedMemory(std::byte* external_ptr, const std::uint32_t bytes)
+            ManagedMemory(std::byte* external_ptr, const std::uint32_t bytes) noexcept
                 :
                 ptr(external_ptr), managed_memory_bytes(bytes)
             {}
@@ -99,14 +95,14 @@ namespace XXX_NAMESPACE
             ManagedMemory(ManagedMemory&&) = delete;
             ManagedMemory& operator=(ManagedMemory&&) = delete;
 
-            void Register(std::byte* external_ptr, const std::uint32_t bytes)
+            void Register(std::byte* external_ptr, const std::uint32_t bytes) noexcept
             {
                 ptr = external_ptr;
                 managed_memory_bytes = bytes;
                 memory_bytes_used = {};
             }
 
-            void Reset()
+            void Reset() noexcept
             {
                 ptr = {};
                 managed_memory_bytes = {};

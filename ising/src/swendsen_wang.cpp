@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
+#include <limits>
 
 #include "environment/environment.hpp"
 #include "swendsen_wang.hpp"
@@ -12,16 +14,19 @@ namespace XXX_NAMESPACE
 {
     namespace
     {
-        template <DeviceName Target>
-        std::array<std::uint32_t, 2> GetTileSize(const std::uint32_t wavefront_size)
+        template <DeviceName Target, std::uint32_t Dimension>
+        std::array<std::uint32_t, Dimension> GetTileSize(const std::uint32_t wavefront_size)
         {
-            if constexpr (Target == DeviceName::CPU)
+            if constexpr (Dimension == 2)
             {
-                return {GetEnv("TILE_SIZE_X", wavefront_size), GetEnv("TILE_SIZE_Y", 8U)};
-            }
-            else
-            {
-                return {8, 8};
+                if constexpr (Target == DeviceName::CPU)
+                {
+                    return {GetEnv("TILE_SIZE_X", wavefront_size), GetEnv("TILE_SIZE_Y", 8U)};
+                }
+                else
+                {
+                    return {8, 8};
+                }
             }
         }
     }
@@ -29,17 +34,16 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     SwendsenWang_2D<RNG, Target>::SwendsenWang_2D(DeviceType& target)
         :
-        target(target),
-        tile_size(GetTileSize<Target>(WavefrontSize))
+        target(target), tile_size(GetTileSize<Target, 2>(WavefrontSize))
     {
-        const std::uint32_t concurrency = target.Concurrency();
+        const auto concurrency = target.Concurrency();
 #if defined __HIPCC__
     #if (defined(__GFX10__) || defined(__GFX11__))
-        const std::uint32_t num_rngs = concurrency;
+        const auto num_rngs = concurrency;
     #else
     #endif
 #else
-        const std::uint32_t num_rngs = concurrency;
+        const auto num_rngs = concurrency;
 #endif
 
         rng_state.reserve(num_rngs);
@@ -64,7 +68,12 @@ namespace XXX_NAMESPACE
     void SwendsenWang_2D<RNG, Target>::Update(Lattice<2>& lattice, const float temperature)
     {
         if (!cluster.Initialized())
+        {
+            if (lattice.NumSites() > std::numeric_limits<LabelType>::max())
+                throw std::runtime_error("SwendsenWang_2D LabelType cannot hold max possible label.");
+
             cluster.Resize(lattice.Extent());
+        }
 
 #if defined __HIPCC__
         if constexpr (Target == DeviceName::AMD_GPU)

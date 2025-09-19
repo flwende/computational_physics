@@ -33,7 +33,7 @@ namespace XXX_NAMESPACE
             }
             else
             {
-                static_assert(false, "Unsupported type for environment variable");
+                static_assert(false, "Unsupported type for environment variable.");
             }
         }
         catch (const std::exception&)

@@ -22,10 +22,9 @@ namespace XXX_NAMESPACE
 
         public:
             // The meaning of group_size and id is "number of GPUs" and "GPU id".
-            HipContext(const std::uint32_t group_size, const std::uint32_t id, AMD_GPU& device)
+            HipContext(const std::uint32_t group_size, const std::uint32_t id, AMD_GPU& device) noexcept
                 :
-                Context(group_size, id),
-                device(device)
+                Context(group_size, id), device(device)
             {}
 
             void Synchronize() override
@@ -34,7 +33,7 @@ namespace XXX_NAMESPACE
                 SafeCall(hipDeviceSynchronize());
             }
 
-            AMD_GPU& Device() const { return device; }
+            AMD_GPU& Device() const noexcept { return device; }
     };
 }
 

@@ -11,13 +11,11 @@
 
 namespace XXX_NAMESPACE
 {
-    template <std::uint32_t Dimension,
-        template <DeviceName> typename RNG,
-        DeviceName Target>
+    template <std::uint32_t Dimension, template <DeviceName> typename RNG, DeviceName Target>
     class LatticeMonteCarloAlgorithm
     {
         public:
-            virtual ~LatticeMonteCarloAlgorithm() = default;
+            virtual ~LatticeMonteCarloAlgorithm() noexcept = default;
 
             virtual void Update(Lattice<Dimension>& lattice, const float temperature) = 0;
     };  

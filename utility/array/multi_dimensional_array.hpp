@@ -38,6 +38,7 @@ namespace XXX_NAMESPACE
             auto RawPointer() noexcept { return accessor.RawPointer(); }
             auto RawPointer() const noexcept { return accessor.RawPointer(); }
 
+            // Trailing return type is needed to get reference return type for Dimension 1.
             auto operator[](const std::int32_t index) -> decltype(accessor[0]) { return accessor[index]; }
             auto operator[](const std::int32_t index) const -> decltype(accessor[0]) { return accessor[index]; }
 
@@ -62,8 +63,7 @@ namespace XXX_NAMESPACE
         protected:
             NonOwningMultiDimensionalArray(ManagedMemory::Pointer<T>&& ptr, const std::array<std::uint32_t, Dimension>& extent)
                 :
-                Base(ptr.Get(), extent),
-                ptr(std::move(ptr))
+                Base(ptr.Get(), extent), ptr(std::move(ptr))
             {}
     };
 
@@ -85,19 +85,21 @@ namespace XXX_NAMESPACE
                 span(data.get(), extent)
             {}
             
+            // This type cannot be copied because of unique_ptr. Use deep copy instead.
             MultiDimensionalArray(const MultiDimensionalArray&) = delete;
             MultiDimensionalArray& operator=(const MultiDimensionalArray& other) = delete;
 
             MultiDimensionalArray(MultiDimensionalArray&&) noexcept = default;
             MultiDimensionalArray& operator=(MultiDimensionalArray&&) noexcept = default;
 
-            auto Initialized() const { return span.Initialized(); }
+            auto Initialized() const noexcept { return span.Initialized(); }
             auto& Extent() const noexcept { return span.Extent(); }
             auto Elements() const noexcept { return span.Elements(); }
 
             auto RawPointer() noexcept { return span.RawPointer(); }
             auto RawPointer() const noexcept { return span.RawPointer(); }
 
+            // Trailing return type is needed to get reference return type for Dimension 1.
             auto operator[](const std::int32_t index) -> decltype(span[0]) { return span[index]; }
             auto operator[](const std::int32_t index) const -> decltype(span[0]) { return span[index]; }
 

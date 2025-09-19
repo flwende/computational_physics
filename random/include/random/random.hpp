@@ -16,21 +16,21 @@ namespace XXX_NAMESPACE
 	class RandomNumberGenerator
 	{
         public:
-            virtual ~RandomNumberGenerator() = default;
+            virtual ~RandomNumberGenerator() noexcept = default;
 
-            virtual void Init(const std::uint32_t seed) = 0;
+            virtual void Init(const std::uint32_t seed) noexcept = 0;
 
-            virtual std::uint32_t NextInteger() = 0;
+            virtual std::uint32_t NextInteger() noexcept = 0;
 
-            virtual float NextReal() = 0;
+            virtual float NextReal() noexcept = 0;
 
-            virtual void NextInteger(std::vector<std::uint32_t>& numbers)
+            virtual void NextInteger(std::vector<std::uint32_t>& numbers) noexcept
             {
                 std::for_each(std::begin(numbers), std::end(numbers),
                     [this] (auto& item) { item = NextInteger(); });
             }
 
-            virtual void NextReal(std::vector<float>& numbers)
+            virtual void NextReal(std::vector<float>& numbers) noexcept
             {
                 std::for_each(std::begin(numbers), std::end(numbers),
                     [this] (auto& item) { item = NextReal(); });

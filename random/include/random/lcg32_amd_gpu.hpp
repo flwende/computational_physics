@@ -66,7 +66,7 @@ void Shuffle_1d()
     const std::int32_t index = threadIdx.x;
 
     if (index == 0)
-        iteration += shuffle_distance;
+        iteration += ShuffleDistance;
 
     constexpr std::int32_t m = WaveFrontSize - 1;
     const std::int32_t shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
@@ -82,7 +82,7 @@ void Shuffle()
         + threadIdx.y * blockDim.x + threadIdx.x;
 
     if (index == 0)
-        iteration += shuffle_distance;
+        iteration += ShuffleDistance;
 
     constexpr std::int32_t m = WaveFrontSize - 1;
     const std::int32_t shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
@@ -106,12 +106,6 @@ void Update()
         + threadIdx.y * blockDim.x + threadIdx.x;
 
     state[index] = a[index] * state[index] + c[index];
-}
-
-__device__
-static constexpr std::uint32_t ShuffleDistance()
-{ 
-    return shuffle_distance;
 }
 
 #endif

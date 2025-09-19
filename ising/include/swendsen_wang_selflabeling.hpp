@@ -1,5 +1,6 @@
 #pragma once
 
+#include "atomic/atomic.hpp"
 #include "swendsen_wang.hpp"
 
 #if !defined(XXX_NAMESPACE)
@@ -42,21 +43,19 @@ namespace XXX_NAMESPACE
     void SwendsenWang_2D<RNG, Target>::CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<uint32_t, 2>& n_offset, const std::array<uint32_t, 2>& n_sub)
     {
         auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::uint32_t thread_id = thread_group.ThreadId();
+        const auto thread_id = thread_group.ThreadId();
 
         // Possible compiler optimization: N_0 has default value 0.
         // if the extent of the tile in 0-direction equals tile_size[0] (= multiple of the SIMD width),
         // the compiler can maybe apply some SIMD related optimizations
-        const std::uint32_t ii_max = (N_0 == 0 ? n_sub[0] : N_0);
-        const std::uint32_t jj_max = n_sub[1];
+        const auto ii_max = (N_0 == 0 ? n_sub[0] : N_0);
+        const auto jj_max = n_sub[1];
+
         // Local copy of the tile.
-        //std::uint32_t l[jj_max][ii_max];
-        // Local cluster.
-        //std::uint32_t c[jj_max][ii_max];
-        // Temporaries.
-        //std::uint32_t tmp[ii_max];
         VariableLengthArray<std::uint32_t, 2> l(thread_group.StackMemory(), {ii_max, jj_max});
+        // Local copy of the tile.
         VariableLengthArray<std::uint32_t, 2> c(thread_group.StackMemory(), {ii_max, jj_max});
+        // Temporaries.
         VariableLengthArray<std::uint32_t, 1> tmp(thread_group.StackMemory(), {ii_max});
 
         // Random numbers.
@@ -82,7 +81,7 @@ namespace XXX_NAMESPACE
             #pragma omp simd
             for (std::uint32_t ii = 0; ii < ii_max; ++ii)
             {
-                std::uint32_t l_0 = l[jj][ii];
+                auto l_0 = l[jj][ii];
                 if (l_0 == tmp[ii] && buffer[ii] < p_add)
                     l_0 |= 0x2;
                 l[jj][ii] = l_0;
@@ -97,7 +96,7 @@ namespace XXX_NAMESPACE
             #pragma omp simd
             for (std::uint32_t ii = 0; ii < ii_max; ++ii)
             {
-                std::uint32_t l_0 = l[jj][ii];
+                auto l_0 = l[jj][ii];
                 if ((l_0 & 0x1) == (l[jj + 1][ii] & 0x1) && buffer[ii] < p_add)
                     l_0 |= 0x4;
                 l[jj][ii] = l_0;
@@ -119,7 +118,7 @@ namespace XXX_NAMESPACE
             break_loop = true;
             for (std::uint32_t jj = 0; jj < jj_max; ++jj)
             {
-                bool label_changes = true;
+                auto label_changes = true;
                 while (label_changes)
                 {
                     #pragma omp simd
@@ -156,18 +155,18 @@ namespace XXX_NAMESPACE
                 for (std::uint32_t ii = 0; ii < ii_max; ++ii)
                     tmp[ii] = (l[jj][ii] & 0x4);
 
-                std::uint32_t counter = 0;
+                auto counter = std::uint32_t{0};
                 #pragma omp simd reduction(+ : counter)
                 for (std::uint32_t ii = 0; ii < ii_max; ++ii)
                 {
                     if (tmp[ii])
                     {
-                        const std::uint32_t a = c[jj][ii];
-                        const std::uint32_t b = c[jj + 1][ii];
+                        const auto a = c[jj][ii];
+                        const auto b = c[jj + 1][ii];
                         if (a != b)
                         {
                             // Replace both labels by their minimum
-                            const std::uint32_t ab = std::min(a, b);
+                            const auto ab = std::min(a, b);
                             c[jj][ii] = ab;
                             c[jj + 1][ii] = ab;
                             counter++;
@@ -181,13 +180,13 @@ namespace XXX_NAMESPACE
         }
 
         // Step 5: translate local to global labels.
-        const std::uint32_t n_0 = lattice.Extent()[0];
+        const auto n_0 = lattice.Extent()[0];
         for (std::uint32_t jj = 0; jj < jj_max; ++jj)
         {
             for (std::uint32_t ii = 0; ii < ii_max; ++ii)
             {
-                const std::uint32_t a = c[jj][ii] % ii_max;
-                const std::uint32_t b = c[jj][ii] / ii_max;
+                const auto a = c[jj][ii] % ii_max;
+                const auto b = c[jj][ii] / ii_max;
                 cluster[n_offset[1] + jj][n_offset[0] + ii] = static_cast<LabelType>(n_offset[1] + b) * n_0 + (n_offset[0] + a);
             }
         }

@@ -16,8 +16,8 @@ static Barrier barrier;
 
 int main(int argc, char** argv)
 {
-    const std::uint32_t num_iterations = (argc > 1 ? std::atoi(argv[1]) : 1);
-    const std::uint32_t num_threads = (argc > 2 ? std::atoi(argv[2]) : 1);
+    const auto num_iterations = static_cast<std::uint32_t>(argc > 1 ? std::atoi(argv[1]) : 1);
+    const auto num_threads = static_cast<std::uint32_t>(argc > 2 ? std::atoi(argv[2]) : 1);
 
     std::cout << "Threads: " << num_threads << std::endl;
     std::cout << "Iteartions: " << num_iterations << std::endl;
@@ -43,7 +43,7 @@ int main(int argc, char** argv)
     auto endtime = std::chrono::high_resolution_clock::now();
 
     // Reporting.
-    const double elapsed_time_ms = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-3;
+    const auto elapsed_time_ms = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-3;
     std::cout << "Time per iteration: " << elapsed_time_ms / num_iterations << "ms" << std::endl;
 
     for (auto& thread : threads)

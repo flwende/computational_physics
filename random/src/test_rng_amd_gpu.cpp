@@ -48,9 +48,9 @@ void Kernel(RngState* rng_state, float* output, const std::uint32_t iterations)
     const std::uint32_t rng_id = blockIdx.x * blockDim.y + threadIdx.y;
     float* random_numbers = output + rng_id * Buffersize;
 
-    for (std::uint32_t i = 0; i < iterations; i += RngState::ShuffleDistance())
+    for (std::uint32_t i = 0; i < iterations; i += RngState::GetShuffleDistance())
     {
-        for (std::uint32_t ii = 0; ii < RngState::ShuffleDistance(); ++ii)
+        for (std::uint32_t ii = 0; ii < RngState::GetShuffleDistance(); ++ii)
         {
             state->Update_1d();
             random_numbers[threadIdx.x] = 2.3283064370807974E-10F * state->Get(threadIdx.x);

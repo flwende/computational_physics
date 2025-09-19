@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <numeric>
 #include <ranges>
 #include <type_traits>
@@ -13,7 +12,7 @@
 namespace XXX_NAMESPACE
 {
     template <typename Func, std::ranges::range Data, typename T>
-    auto Accumulate(const Data& data, const T seed)
+    auto Accumulate(const Data& data, const T seed) noexcept
     {
         if constexpr (std::is_same_v<Func, std::multiplies<T>>)
         {

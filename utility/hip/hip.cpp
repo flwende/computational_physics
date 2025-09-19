@@ -17,7 +17,7 @@ namespace XXX_NAMESPACE
     {
         if (err != hipSuccess)
         {
-            const std::string error_message(hipGetErrorString(err));
+            const auto error_message = std::string{hipGetErrorString(err)};
             std::cerr << "HIP Error: " << error_message << std::endl;
             throw std::runtime_error(std::string("HIP error: ") + error_message);
         }
@@ -25,7 +25,7 @@ namespace XXX_NAMESPACE
 
     std::uint32_t HipGetDeviceProperty(const std::string& property, const std::uint32_t device_id)
     {
-        hipDeviceProp_t properties{};
+        hipDeviceProp_t properties {};
         SafeCall(hipGetDeviceProperties(&properties, device_id));
 
         if (property == "maxThreadsPerBlock")
@@ -37,11 +37,11 @@ namespace XXX_NAMESPACE
         else if (property == "totalConstMem")
             return properties.totalConstMem;
         else if (property == "multiProcessorCount")
-            #if defined(__GFX10__) || defined(__GFX11__)
+#if defined(__GFX10__) || defined(__GFX11__)
             return 2 * properties.multiProcessorCount; /* RDNA: meaning is 'workgroup processors' not CUs -> multiply by 2 */
-            #else
+#else
             return properties.multiProcessorCount; /* GCN, CDNA: meaning is CUs */
-            #endif
+#endif
         else if (property == "maxThreadsPerMultiProcessor")
             return properties.maxThreadsPerMultiProcessor;
         else if (property == "memoryClockRate")

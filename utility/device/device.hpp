@@ -19,26 +19,26 @@ namespace XXX_NAMESPACE
 
     class AbstractDevice
     {
+        protected:
+            DeviceName device_name {};
+            std::uint32_t device_id {};
+
         public:
-            virtual ~AbstractDevice() = default;
+            virtual ~AbstractDevice() noexcept = default;
 
-            virtual bool IsOffloadDevice() const = 0;
+            virtual bool IsOffloadDevice() const noexcept = 0;
 
-            virtual std::uint32_t Concurrency() const = 0;
+            virtual std::uint32_t Concurrency() const noexcept = 0;
 
-            constexpr DeviceName Name() const { return device_name; }
+            constexpr auto Name() const noexcept { return device_name; }
 
-            std::uint32_t DeviceId() const { return device_id; }
+            auto DeviceId() const noexcept { return device_id; }
 
         protected:
             AbstractDevice(const DeviceName device_name, const std::uint32_t device_id)
                 :
-                device_name(device_name),
-                device_id(device_id)
+                device_name(device_name), device_id(device_id)
             {}
-
-            DeviceName device_name;
-            std::uint32_t device_id;
     };
 }
 

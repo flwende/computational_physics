@@ -1,11 +1,8 @@
 #pragma once
 
 #include <atomic>
-#include <cassert>
 #include <cstdint>
 #include <functional>
-#include <stdexcept>
-#include <string>
 #include <thread>
 #include <vector>
 #include <sched.h>
@@ -21,7 +18,7 @@ namespace XXX_NAMESPACE
 {
     class ThreadGroup
     {
-        static constexpr std::uint32_t MaxManagedStackMemorySize = 65536; // This is 64kB, which should be good in most cases.
+        static constexpr auto MaxManagedStackMemorySize = std::uint32_t{65536}; // This is 64kB, which should be good in most cases.
 
         protected:
             std::atomic<bool> active {false};
@@ -36,17 +33,14 @@ namespace XXX_NAMESPACE
         public:
             explicit ThreadGroup(const std::uint32_t num_threads)
                 :
-                num_threads(num_threads),
-                new_task(num_threads),
-                task_done(num_threads),
-                barrier(num_threads)
+                num_threads(num_threads), new_task(num_threads), task_done(num_threads), barrier(num_threads)
             {
                 PinThread(0); // The master thread always exists: pin it to core 0.
 
                 active = true;
                 threads.reserve(num_threads - 1);
-                for (std::uint32_t id = 1; id < num_threads; ++id)
-                    threads.emplace_back([this] (const std::uint32_t thread_id) { Run(thread_id); }, id);
+                for (std::uint32_t i = 1; i < num_threads; ++i)
+                    threads.emplace_back([this] (const std::uint32_t thread_id) { Run(thread_id); }, i);
 
                 // Give threads some time to spin up.
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -60,6 +54,7 @@ namespace XXX_NAMESPACE
 
             virtual ~ThreadGroup()
             {
+                // Signal to threads that we are going down.
                 active.store(false, std::memory_order_release);
                 new_task.Signal();
 
@@ -67,12 +62,12 @@ namespace XXX_NAMESPACE
                     thread.join();
             }
 
-            auto Size() const { return num_threads; }
+            auto Size() const noexcept { return num_threads; }
 
             void SetManagedStackMemorySize(const std::uint32_t bytes)
             {
                 if (bytes > MaxManagedStackMemorySize)
-                    throw ManagedMemoryError("Managed stack memory size exceeded.");
+                    throw ManagedMemoryError("Maxium managed stack memory size exceeded.");
 
                 managed_stack_memory_bytes = bytes;
             }
@@ -103,7 +98,7 @@ namespace XXX_NAMESPACE
             template <typename Func>
             void ExecuteInNewStackFrame(Func&& func, ThreadContext& context)
             {
-                std::byte* ptr = reinterpret_cast<std::byte*>(alloca(managed_stack_memory_bytes));
+                auto ptr = reinterpret_cast<std::byte*>(alloca(managed_stack_memory_bytes));
                 context.StackMemory().Register(ptr, managed_stack_memory_bytes);
 
                 func(context);

@@ -39,12 +39,6 @@ namespace XXX_NAMESPACE
     using GpuPointer = std::unique_ptr<T, internal::GPUMemoryDeleter<T>>;
 }
 
-#define SAFE_CALL(X) XXX_NAMESPACE::SafeCall(X)
-
 #undef XXX_NAMESPACE
-
-#else
-
-#define SAFE_CALL(X)
 
 #endif

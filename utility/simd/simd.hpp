@@ -37,20 +37,20 @@ namespace XXX_NAMESPACE
     namespace simd
     {
         // Memory alignment.
-        static constexpr std::size_t alignment = SIMD_ALIGNMENT;
+        static constexpr auto alignment = std::size_t{SIMD_ALIGNMENT};
 
         // Data types that support SIMD operations (implementations).
         template <typename T>
         struct Implementation
         {
-            static constexpr bool available = false;
+            static constexpr auto available = false;
         };
 
         #define MACRO(T)                                            \
         template <>                                                 \
         struct Implementation<T>                                    \
         {                                                           \
-            static constexpr bool available = true;                 \
+            static constexpr auto available = true;                 \
         };
 
         MACRO(double)
@@ -77,7 +77,7 @@ namespace XXX_NAMESPACE
         template <>                                                 \
         struct Type<T>                                              \
         {                                                           \
-            static constexpr std::uint32_t width = WIDTH;           \
+            static constexpr auto width = std::uint32_t{WIDTH};     \
         };
 
         MACRO(double, SIMD_WIDTH_NATIVE_64BIT)

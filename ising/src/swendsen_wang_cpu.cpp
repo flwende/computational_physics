@@ -14,26 +14,26 @@ namespace XXX_NAMESPACE
     void SwendsenWang_2D<RNG, Target>::AssignLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
         auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::uint32_t thread_id = thread_group.ThreadId();
-        const std::uint32_t num_threads = thread_group.NumThreads();
+        const auto thread_id = thread_group.ThreadId();
+        const auto num_threads = thread_group.NumThreads();
 
-        const std::uint32_t extent_0 = lattice.Extent()[0];
-        const std::uint32_t extent_1 = lattice.Extent()[1];
+        const auto extent_0 = lattice.Extent()[0];
+        const auto extent_1 = lattice.Extent()[1];
 
-        const std::uint32_t n_0 = extent_0 / tile_size[0];
-        const std::uint32_t n_1 = extent_1 / tile_size[1];
-        const std::uint32_t n_total = n_0 * n_1;
+        const auto n_0 = extent_0 / tile_size[0];
+        const auto n_1 = extent_1 / tile_size[1];
+        const auto n_total = n_0 * n_1;
 
-        const std::uint32_t n_chunk = (n_total + num_threads - 1) / num_threads;
-        const std::uint32_t n_start = thread_id * n_chunk;
-        const std::uint32_t n_end = std::min(n_start + n_chunk, n_total);
+        const auto n_chunk = (n_total + num_threads - 1) / num_threads;
+        const auto n_start = thread_id * n_chunk;
+        const auto n_end = std::min(n_start + n_chunk, n_total);
 
         for (std::uint32_t n = n_start; n < n_end; ++n)
         {
-            const std::uint32_t j = (n / n_0) * tile_size[1];
-            const std::uint32_t i = (n % n_0) * tile_size[0];
-            const std::array<uint32_t, 2> n_offset{i, j};
-            const std::array<uint32_t, 2> n_sub{std::min(tile_size[0], extent_0 - i), std::min(tile_size[1], extent_1 - j)};
+            const auto j = (n / n_0) * tile_size[1];
+            const auto i = (n % n_0) * tile_size[0];
+            const auto n_offset = std::array<uint32_t, 2>{i, j};
+            const auto n_sub = std::array<uint32_t, 2>{std::min(tile_size[0], extent_0 - i), std::min(tile_size[1], extent_1 - j)};
             if (n_sub[0] == WavefrontSize)
             {
                 // We can call a version of that method with the extent in 0-direction being
@@ -51,40 +51,40 @@ namespace XXX_NAMESPACE
     void SwendsenWang_2D<RNG, Target>::MergeLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
         auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::uint32_t thread_id = thread_group.ThreadId();
-        const std::uint32_t num_threads = thread_group.NumThreads();
+        const auto thread_id = thread_group.ThreadId();
+        const auto num_threads = thread_group.NumThreads();
 
-        const std::uint32_t extent_0 = lattice.Extent()[0];
-        const std::uint32_t extent_1 = lattice.Extent()[1];
+        const auto extent_0 = lattice.Extent()[0];
+        const auto extent_1 = lattice.Extent()[1];
 
-        const std::uint32_t n_0 = extent_0 / tile_size[0];
-        const std::uint32_t n_1 = extent_1 / tile_size[1];
-        const std::uint32_t n_total = n_0 * n_1;
+        const auto n_0 = extent_0 / tile_size[0];
+        const auto n_1 = extent_1 / tile_size[1];
+        const auto n_total = n_0 * n_1;
 
-        const std::uint32_t n_chunk = (n_total + num_threads - 1) / num_threads;
-        const std::uint32_t n_start = thread_id * n_chunk;
-        const std::uint32_t n_end = std::min(n_start + n_chunk, n_total);
+        const auto n_chunk = (n_total + num_threads - 1) / num_threads;
+        const auto n_start = thread_id * n_chunk;
+        const auto n_end = std::min(n_start + n_chunk, n_total);
 
-        const std::uint32_t buffer_size = tile_size[0] + tile_size[1];
+        const auto buffer_size = tile_size[0] + tile_size[1];
         std::vector<float> buffer(buffer_size);
 
         for (std::uint32_t n = n_start; n < n_end; ++n)
         {
-            const std::uint32_t j = (n / n_0) * tile_size[1];
-            const std::uint32_t i = (n % n_0) * tile_size[0];
+            const auto j = (n / n_0) * tile_size[1];
+            const auto i = (n % n_0) * tile_size[0];
+
+            const auto jj_max = std::min(tile_size[1], extent_1 - j);
+            const auto ii_max = std::min(tile_size[0], extent_0 - i);
 
             rng[thread_id]->NextReal(buffer);
-
-            const std::uint32_t jj_max = std::min(tile_size[1], extent_1 - j);
-            const std::uint32_t ii_max = std::min(tile_size[0], extent_0 - i);
 
             // Merge in 1-direction
             for (std::uint32_t ii = 0; ii < ii_max; ++ii)
             {
                 if (buffer[ii] < p_add && lattice[j + jj_max - 1][i + ii] == lattice[(j + jj_max) % extent_1][i + ii])
                 {
-                    LabelType a = cluster[j + jj_max - 1][i + ii];
-                    LabelType b = cluster[(j + jj_max) % extent_1][i + ii];
+                    const auto a = cluster[j + jj_max - 1][i + ii];
+                    const auto b = cluster[(j + jj_max) % extent_1][i + ii];
                     if (a != b)
                         Merge(cluster.RawPointer(), a, b);
                 }
@@ -95,8 +95,8 @@ namespace XXX_NAMESPACE
             {
                 if (buffer[tile_size[0] + jj] < p_add && lattice[j + jj][i + ii_max - 1] == lattice[j + jj][(i + ii_max) % extent_0])
                 {
-                    LabelType a = cluster[j + jj][i + ii_max - 1];
-                    LabelType b = cluster[j + jj][(i + ii_max) % extent_0];
+                    const auto a = cluster[j + jj][i + ii_max - 1];
+                    const auto b = cluster[j + jj][(i + ii_max) % extent_0];
                     if (a != b)
                         Merge(cluster.RawPointer(), a, b);
                 }
@@ -129,7 +129,7 @@ namespace XXX_NAMESPACE
         {
             // c holds either the old value pointed to by ptr[b] in case of A is smaller,
             // or the actual minimum if the assumption that A is smaller is wrong
-            LabelType c = AtomicMin(&ptr[b], a);
+            auto c = AtomicMin(&ptr[b], a);
 
             // Successfully established the equivalence of A and B!
             // in the first loop iteration it might be that C != A, but if in the meantime no
@@ -160,17 +160,17 @@ namespace XXX_NAMESPACE
     void SwendsenWang_2D<RNG, Target>::ResolveLabels(Context& context)
     {
         auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::uint32_t threads_id = thread_group.ThreadId();
-        const std::uint32_t num_threads = thread_group.NumThreads();
+        const auto thread_id = thread_group.ThreadId();
+        const auto num_threads = thread_group.NumThreads();
 
-        const std::size_t num_sites = cluster.Extent()[0] * cluster.Extent()[1];
-        const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
-        const std::size_t start = threads_id * chunk_size;
-        const std::size_t end = std::min(start + chunk_size, num_sites);
+        const auto num_sites = static_cast<size_t>(cluster.Extent()[0]) * cluster.Extent()[1];
+        const auto chunk_size = (num_sites + num_threads - 1) / num_threads;
+        const auto start = static_cast<LabelType>(thread_id * chunk_size);
+        const auto end = static_cast<LabelType>(std::min(start + chunk_size, num_sites));
 
         auto* ptr = cluster.RawPointer();
 
-        for (std::size_t i = start; i < end; ++i)
+        for (LabelType i = start; i < end; ++i)
         {
             LabelType c = ptr[i];
             while (c != ptr[c])
@@ -188,19 +188,19 @@ namespace XXX_NAMESPACE
     void SwendsenWang_2D<RNG, Target>::FlipClusters(Context& context, Lattice<2>& lattice)
     {
         auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::uint32_t threads_id = thread_group.ThreadId();
-        const std::uint32_t num_threads = thread_group.NumThreads();
+        const auto thread_id = thread_group.ThreadId();
+        const auto num_threads = thread_group.NumThreads();
 
-        const std::size_t num_sites = lattice.NumSites();
-        const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
-        const std::size_t start = threads_id * chunk_size;
-        const std::size_t end = std::min(start + chunk_size, num_sites);
+        const auto num_sites = lattice.NumSites();
+        const auto chunk_size = (num_sites + num_threads - 1) / num_threads;
+        const auto start = static_cast<LabelType>(thread_id * chunk_size);
+        const auto end = static_cast<LabelType>(std::min(start + chunk_size, num_sites));
 
         const auto* c_ptr = cluster.RawPointer();
         auto* ptr = lattice.RawPointer();
 
         #pragma omp simd
-        for (std::size_t i = start; i < end; ++i)
+        for (LabelType i = start; i < end; ++i)
             ptr[i] ^= (c_ptr[i] & 0x1);
     }
 

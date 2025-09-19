@@ -16,12 +16,13 @@ namespace XXX_NAMESPACE
 {
     class Barrier final
     {
-        std::atomic<std::uint32_t> expected {1}, value {0}, epoch {0}, active_waiters {0};
-        std::atomic<bool> allow_entry {true};
-        void (Barrier::* implementation)() {};
-        const std::uint32_t hardware_threads;
-        std::condition_variable cv;
-        std::mutex cv_mutex;
+        private:
+            std::atomic<std::uint32_t> expected {1}, value {0}, epoch {0}, active_waiters {0};
+            std::atomic<bool> allow_entry {true};
+            void (Barrier::* implementation)() {};
+            const std::uint32_t hardware_threads {};
+            std::condition_variable cv {};
+            std::mutex cv_mutex {};
 
         public:
             Barrier(const std::uint32_t expected = 1)
@@ -85,7 +86,7 @@ namespace XXX_NAMESPACE
         private:
             void CvWait()
             {
-                std::unique_lock<std::mutex> lock(cv_mutex);
+                auto lock = std::unique_lock<std::mutex>{cv_mutex};
 
                 // The last thread reaching the barrier will update the state and 'epoch'.
                 if (value.fetch_add(1, std::memory_order_acq_rel) == (expected - 1))
@@ -109,7 +110,7 @@ namespace XXX_NAMESPACE
             void BusyWait()
             {
                 // Make a copy of 'epoch' and wait for it to change.
-                const std::uint32_t current_epoch = epoch.load(std::memory_order_acquire);
+                const auto current_epoch = epoch.load(std::memory_order_acquire);
 
                 // The last thread reaching the barrier will update the state and 'epoch'.
                 if (value.fetch_add(1, std::memory_order_acq_rel) == (expected - 1))

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 #include <cstdint>
 
 #include "context.hpp"
@@ -20,15 +19,15 @@ namespace XXX_NAMESPACE
             Barrier& barrier;
 
         public:
-            ThreadContext(const std::uint32_t group_size, const std::uint32_t id, Barrier& barrier)
+            ThreadContext(const std::uint32_t group_size, const std::uint32_t id, Barrier& barrier) noexcept
                 :
                 Context(group_size, id), barrier(barrier)
             {}
 
-            auto NumThreads() const { return GroupSize(); }
-            auto ThreadId() const { return Id(); }
+            auto NumThreads() const noexcept { return GroupSize(); }
+            auto ThreadId() const noexcept { return Id(); }
 
-            ManagedMemory& StackMemory() { return stack_memory; }
+            ManagedMemory& StackMemory() noexcept { return stack_memory; }
 
             void Synchronize() override { barrier.Wait(); }
     };

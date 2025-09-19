@@ -10,7 +10,7 @@ namespace XXX_NAMESPACE
 {
     // Replace the data pointed to by ptr by desired if and only if desired is smaller.
     template <typename T>
-    T AtomicMin(volatile T* const ptr, const T desired)
+    T AtomicMin(volatile T* const ptr, const T desired) noexcept
     {
         static_assert(std::is_arithmetic_v<T> && sizeof(T) <= 8, "Error: unsupported type.");
 

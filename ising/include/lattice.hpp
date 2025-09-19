@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -24,17 +23,25 @@ namespace XXX_NAMESPACE
         public:
             using Spin = std::uint8_t;
 
+        private:
+            const std::array<std::uint32_t, Dimension> extent {};
+            const std::size_t num_sites {};
+            MultiDimensionalArray<Spin, Dimension> spins {};
+#if defined __HIPCC__
+            GpuPointer<Spin> gpu_spins {};
+#endif
+
         public:
             Lattice(const std::array<std::uint32_t, Dimension>& extent);
 
-            const auto& Extent() const { return extent; }
-            auto NumSites() const { return num_sites; }
+            auto& Extent() const noexcept { return extent; }
+            auto NumSites() const noexcept { return num_sites; }
 
-            const auto RawPointer() const { return spins.RawPointer(); }
-            auto RawPointer() { return spins.RawPointer(); }
+            auto RawPointer() const noexcept { return spins.RawPointer(); }
+            auto RawPointer() noexcept { return spins.RawPointer(); }
 
             auto operator[](const std::int32_t index) { return spins[index]; }
-            const auto operator[](const std::int32_t index) const { return spins[index]; }
+            auto operator[](const std::int32_t index) const { return spins[index]; }
 
             template <template <template <DeviceName> typename, DeviceName> typename Strategy,
                 template <DeviceName> typename RNG, typename Target,
@@ -46,7 +53,7 @@ namespace XXX_NAMESPACE
                 if constexpr (Target::Name() == DeviceName::AMD_GPU)
                     InitializeGpuSpins(target);
                 
-                static StrategyImplementation strategy(target);
+                static auto strategy = StrategyImplementation(target);
                 strategy.Update(*this, temperature);
             }
 
@@ -62,32 +69,27 @@ namespace XXX_NAMESPACE
             std::pair<double, double> GetEnergyAndMagnetization(Target& target);
 
             template <DeviceName Target = DeviceName::CPU>
-            std::pair<double, double> GetEnergyAndMagnetization()
+            auto GetEnergyAndMagnetization()
             {
                 return GetEnergyAndMagnetization(GetDevice<Target>());
             }
 
 #if defined __HIPCC__
-            auto RawGpuPointer() { return gpu_spins.get(); }
-            auto RawGpuPointer() const { return gpu_spins.get(); }
+            auto RawGpuPointer() noexcept { return gpu_spins.get(); }
+            auto RawGpuPointer() const noexcept { return gpu_spins.get(); }
 #endif
 
         protected:
             // Return target device using defaults.
             template <DeviceName Target = DeviceName::CPU>
-            auto& GetDevice()
+            auto& GetDevice() noexcept
             {
                 using DeviceType = typename Device<Target>::Type;
-                static DeviceType target;
+                static auto target = DeviceType{};
                 return target;
             }
 
-            const std::array<std::uint32_t, Dimension> extent;
-            const std::size_t num_sites;
-            MultiDimensionalArray<Spin, Dimension> spins;
-
 #if defined __HIPCC__
-            GpuPointer<Spin> gpu_spins;
             void InitializeGpuSpins(AMD_GPU& gpu);
 #endif
     };

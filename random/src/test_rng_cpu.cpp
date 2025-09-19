@@ -13,7 +13,7 @@
 
 using namespace XXX_NAMESPACE;
 
-constexpr std::uint32_t Buffersize {64};
+constexpr auto Buffersize = std::uint32_t{64};
 
 namespace
 {
@@ -37,14 +37,14 @@ std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id
 
     CPU cpu;
     std::vector<float> random_numbers(Buffersize);
-    double elapsed_time_s {};
+    auto elapsed_time_s = double{0.0};
 
     cpu.Execute([&] (auto& thread_pool)
         {
             const auto [warmup_iterations, benchmark_iterations] = iterations;
             const auto thread_id = thread_pool.ThreadId();
             const auto num_threads = cpu.Concurrency();
-            RNG<DeviceName::CPU> rng(thread_id + 1);
+            auto rng = RNG<DeviceName::CPU>{thread_id + 1};
 
             // Warmup.
             Kernel<RNG<DeviceName::CPU>>(rng, random_numbers, warmup_iterations / num_threads);

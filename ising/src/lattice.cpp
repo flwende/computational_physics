@@ -30,30 +30,29 @@ namespace XXX_NAMESPACE
     template <>
     std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<CPU>(CPU& cpu)
     {
-        const std::uint32_t n_0 = extent[0];
-        const std::uint32_t n_1 = extent[1];
+        const auto n_0 = extent[0];
+        const auto n_1 = extent[1];
 
-        std::atomic<std::int64_t> energy{0};
-        std::atomic<std::int64_t> magnetization{0};
+        auto energy = std::atomic<std::int64_t>{0};
+        auto magnetization = std::atomic<std::int64_t>{0};
 
         auto kernel = [&, this] (ThreadContext& context)
             {
-                const std::uint32_t thread_id = context.ThreadId();
-                const std::uint32_t num_threads = context.NumThreads();
+                const auto thread_id = context.ThreadId();
+                const auto num_threads = context.NumThreads();
 
-                const std::uint32_t y_chunk = (n_1 + num_threads - 1) / num_threads;
-                const std::uint32_t start = thread_id * y_chunk;
-                const std::uint32_t end = std::min(start + y_chunk, n_1);
+                const auto y_chunk = (n_1 + num_threads - 1) / num_threads;
+                const auto start = thread_id * y_chunk;
+                const auto end = std::min(start + y_chunk, n_1);
 
-                std::int64_t e{0}, m{0};
+                auto e = std::int64_t{0};
+                auto m = std::int64_t{0};
 
                 for (std::uint32_t y = start; y < end; ++y)
                 {
                     for (std::uint32_t x = 0; x < n_0; ++x)
                     {
-                        e += (2 * spins[y][x] - 1) * (
-                            (2 * spins[y][(x + 1) % n_0] - 1) +
-                            (2 * spins[(y + 1) % n_1][x] - 1));
+                        e += (2 * spins[y][x] - 1) * ((2 * spins[y][(x + 1) % n_0] - 1) + (2 * spins[(y + 1) % n_1][x] - 1));
                         m += (2 * spins[y][x] - 1);
                     }
                 }
