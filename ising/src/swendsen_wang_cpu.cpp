@@ -20,8 +20,8 @@ namespace XXX_NAMESPACE
         const auto extent_0 = lattice.Extent()[0];
         const auto extent_1 = lattice.Extent()[1];
 
-        const auto n_0 = extent_0 / tile_size[0];
-        const auto n_1 = extent_1 / tile_size[1];
+        const auto n_0 = (extent_0 + tile_size[0] - 1) / tile_size[0];
+        const auto n_1 = (extent_1 + tile_size[1] - 1) / tile_size[1];
         const auto n_total = n_0 * n_1;
 
         const auto n_chunk = (n_total + num_threads - 1) / num_threads;
@@ -57,8 +57,8 @@ namespace XXX_NAMESPACE
         const auto extent_0 = lattice.Extent()[0];
         const auto extent_1 = lattice.Extent()[1];
 
-        const auto n_0 = extent_0 / tile_size[0];
-        const auto n_1 = extent_1 / tile_size[1];
+        const auto n_0 = (extent_0 + tile_size[0] - 1) / tile_size[0];
+        const auto n_1 = (extent_1 + tile_size[1] - 1) / tile_size[1];
         const auto n_total = n_0 * n_1;
 
         const auto n_chunk = (n_total + num_threads - 1) / num_threads;
