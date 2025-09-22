@@ -25,7 +25,7 @@ namespace XXX_NAMESPACE
         {
             std::cout << "Initializing GPU RNG state .. ";
 
-            RngState* ptr{};
+            RngState* ptr {};
             SafeCall(hipSetDevice(target.DeviceId()));
             SafeCall(hipMalloc(&ptr, rng_state.size() * sizeof(RngState)));
             SafeCall(hipMemcpy(ptr, rng_state.data(), rng_state.size() * sizeof(RngState), hipMemcpyHostToDevice));
@@ -42,7 +42,7 @@ namespace XXX_NAMESPACE
         {
             std::cout << "Initializing GPU cluster .. ";
 
-            LabelType* ptr{};
+            LabelType* ptr {};
             SafeCall(hipSetDevice(target.DeviceId()));
             SafeCall(hipMalloc(&ptr, num_sites * sizeof(LabelType)));
             gpu_cluster.reset(ptr);
@@ -53,16 +53,16 @@ namespace XXX_NAMESPACE
 
     template <std::uint32_t N>
     __host__ __device__
-    std::uint32_t Ceil(const std::uint32_t value)
+    auto Ceil(const std::uint32_t value)
     {
         return ((value + N - 1) / N) * N;
     }
 
     template <typename RngState>
     __device__
-    RngState* LoadRngState(const RngState* rng_state)
+    auto* LoadRngState(const RngState* rng_state)
     {
-        RngState* shared_rng_state = reinterpret_cast<RngState*>(shared_memory);
+        auto* shared_rng_state = reinterpret_cast<RngState*>(shared_memory);
         shared_rng_state->Load(rng_state[blockIdx.x]);
         return shared_rng_state;
     }
@@ -226,6 +226,8 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::AssignLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
+        return;
+
         static bool ran_already = false;
         //if (ran_already)
         //    return;
@@ -364,6 +366,8 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::MergeLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
+        return;
+
         static bool ran_already = true;
         //if (ran_already)
         //    return;
@@ -556,6 +560,8 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::ResolveLabels(Context& context)
     {
+        return;
+
         static std::uint32_t iteration = 0;
         //if (ran_already)
         //    return;
@@ -642,6 +648,8 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::FlipClusters(Context& context, Lattice<2>& lattice)
     {
+        return;
+
         HipContext& gpu = static_cast<HipContext&>(context);
         const std::uint32_t num_thread_blocks = gpu.Device().Concurrency();
         //const std::uint32_t num_thread_blocks = 16;

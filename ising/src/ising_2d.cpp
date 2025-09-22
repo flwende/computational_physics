@@ -143,7 +143,7 @@ int main(int argc, char **argv)
     const auto elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-6;
 
     // Output the update time per site ..
-    std::cout << "Update time per site (lattice = " << n_0 << " x " << n_1 << "): ";
+    std::cout << "Update time per site: ";
     std::cout << elapsed_time_s * 1.0e9 / (static_cast<std::int64_t>(n_sweeps) * n_0 * n_1) << " ns" << std::endl;
 
     // .. and mean internal energy and magnetization, both per site.

@@ -34,7 +34,7 @@ namespace XXX_NAMESPACE
         protected:
             DeviceType& target;
             MultiDimensionalArray<LabelType, 2> cluster {};
-            const std::array<std::uint32_t, 2> tile_size {};
+            std::array<std::uint32_t, 2> tile_size {};
 
             // Random number generator: if you use the lcg32 generator, make sure you are
             // compiling with RANDOM_SHUFFLE_STATE (otherwise, random numbers might have too low quality).

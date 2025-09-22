@@ -14,8 +14,8 @@ namespace XXX_NAMESPACE
 {
     namespace
     {
-        template <DeviceName Target, std::uint32_t Dimension>
-        std::array<std::uint32_t, Dimension> GetTileSize(const std::uint32_t wavefront_size)
+        template <DeviceName Target, std::size_t Dimension>
+        std::array<std::uint32_t, Dimension> GetTileSize(const std::uint32_t wavefront_size, const std::array<std::uint32_t, Dimension>& extent)
         {
             if constexpr (Dimension == 2)
             {
@@ -25,7 +25,15 @@ namespace XXX_NAMESPACE
                 }
                 else
                 {
-                    return {8, 8};
+                    if ((2 * wavefront_size) <= extent[0])
+                    {
+                        constexpr auto threads_per_block = std::uint32_t{256};
+                        return {2 * wavefront_size, threads_per_block / wavefront_size};
+                    }
+                    else
+                    {
+                        return {2 * wavefront_size / 4, 4};
+                    }
                 }
             }
         }
@@ -34,57 +42,53 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     SwendsenWang_2D<RNG, Target>::SwendsenWang_2D(DeviceType& target)
         :
-        target(target), tile_size(GetTileSize<Target, 2>(WavefrontSize))
-    {
-        const auto concurrency = target.Concurrency();
-#if defined __HIPCC__
-    #if (defined(__GFX10__) || defined(__GFX11__))
-        const auto num_rngs = concurrency;
-    #else
-    #endif
-#else
-        const auto num_rngs = concurrency;
-#endif
-
-        rng_state.reserve(num_rngs);
-        for (std::uint32_t i = 0; i < num_rngs; ++i)
-            rng_state.emplace_back(i + 1);
-
-        if constexpr (Target == DeviceName::CPU)
-        {
-            rng.reserve(num_rngs);
-            for (std::uint32_t i = 0; i < num_rngs; ++i)
-                rng.emplace_back(new RNG<Target>(rng_state[i]));
-        }
-#if defined __HIPCC__
-        else if constexpr (Target == DeviceName::AMD_GPU)
-        {
-            InitializeGpuRngState();
-        }
-#endif
-    }
+        target(target)
+    {}
 
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::Update(Lattice<2>& lattice, const float temperature)
     {
         if (!cluster.Initialized())
         {
-            if (lattice.NumSites() > std::numeric_limits<LabelType>::max())
-                throw std::runtime_error("SwendsenWang_2D LabelType cannot hold max possible label.");
+            const auto& extent = lattice.Extent();
+            if (extent[0] % 2 || extent[1] % 2)
+                throw std::runtime_error("SwendsenWang_2D implementation requires evenly sized lattice.");
 
-            cluster.Resize(lattice.Extent());
+            std::cout << "Lattice: " << extent[0] << " x " << extent[1] << " (";
+
+            tile_size = GetTileSize<Target>(WavefrontSize, extent);
+            std::cout << "tile size: " << tile_size[0] << " x " << tile_size[1] << ")" << std::endl;
+
+            // Resize the cluster ..
+            cluster.Resize(extent);
+
+            // .. and initialize random number generators (count depends on the lattice extent).
+            const auto concurrency = target.Concurrency();
+            const auto num_rngs = concurrency * (Target == DeviceName::CPU ? 1 :
+                // GPU case: if tiles have '2 x WavefrontSize' extent, we need one RNG per row
+                // (y-direction). Otherwise, every tile is a warp and needs only 1 RNG.
+                (tile_size[0] == (2 * WavefrontSize) ? tile_size[1] : 1));
+
+            for (std::uint32_t i = 0; i < num_rngs; ++i)
+                rng_state.emplace_back(i + 1);
+
+            if constexpr (Target == DeviceName::CPU)
+            {
+                rng.reserve(num_rngs);
+                for (std::uint32_t i = 0; i < num_rngs; ++i)
+                    rng.emplace_back(new RNG<Target>(rng_state[i]));
+
+                // Adapt managed stack memory size for cluster update.
+                const auto needed_bytes = (2 * tile_size[0] * tile_size[1] + tile_size[0]) * sizeof(LabelType);
+                std::cout << "CPU: setting managed stack memory to " << needed_bytes << " bytes" << std::endl;
+                target.SetManagedStackMemorySize(needed_bytes);
+            }
+            else if constexpr (Target == DeviceName::AMD_GPU)
+            {
+                InitializeGpuRngState();
+                InitializeGpuCluster(lattice.NumSites());
+            }
         }
-
-#if defined __HIPCC__
-        if constexpr (Target == DeviceName::AMD_GPU)
-        {
-            InitializeGpuRngState();
-            InitializeGpuCluster(lattice.NumSites());
-        }
-#endif
-
-        if constexpr (Target == DeviceName::CPU)
-            target.SetManagedStackMemorySize(2048);
 
         // Probability for adding aligned neighboring sites to the cluster.
         const float p_add = 1.0f - static_cast<float>(std::exp(-2.0f / temperature));
