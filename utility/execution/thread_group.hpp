@@ -37,13 +37,11 @@ namespace XXX_NAMESPACE
             {
                 PinThread(0); // The master thread always exists: pin it to core 0.
 
-                active = true;
                 threads.reserve(num_threads - 1);
                 for (std::uint32_t i = 1; i < num_threads; ++i)
                     threads.emplace_back([this] (const std::uint32_t thread_id) { Run(thread_id); }, i);
 
-                // Give threads some time to spin up.
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                active.store(true, std::memory_order_relaxed);
             }
 
             ThreadGroup(const ThreadGroup&) = delete;
@@ -54,7 +52,7 @@ namespace XXX_NAMESPACE
 
             virtual ~ThreadGroup()
             {
-                // Signal to threads that we are going down.
+                // Signal to threads that the threads group is going down.
                 active.store(false, std::memory_order_release);
                 new_task.Signal();
 
@@ -106,15 +104,17 @@ namespace XXX_NAMESPACE
                 context.StackMemory().Reset();
             }
 
+            // This method is being called by worker threads.
             void Run(const std::uint32_t thread_id)
             {
                 PinThread(thread_id % std::thread::hardware_concurrency());
 
                 ThreadContext context(num_threads, thread_id, barrier);
 
-                while (active.load(std::memory_order_acquire))
+                while (true)
                 {
                     new_task.Wait();
+
                     if (!active.load(std::memory_order_acquire))
                         break;
 

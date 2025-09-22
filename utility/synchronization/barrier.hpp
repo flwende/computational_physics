@@ -19,7 +19,7 @@ namespace XXX_NAMESPACE
         private:
             std::atomic<std::uint32_t> expected {1}, value {0}, epoch {0}, active_waiters {0};
             std::atomic<bool> allow_entry {true};
-            void (Barrier::* implementation)() {};
+            void (Barrier::* volatile implementation)() {};
             const std::uint32_t hardware_threads {};
             std::condition_variable cv {};
             std::mutex cv_mutex {};
