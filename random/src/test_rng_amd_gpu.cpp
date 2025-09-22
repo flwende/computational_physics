@@ -16,18 +16,18 @@
 using namespace XXX_NAMESPACE;
 
 // This value should be equal to the wavefront size of the GPU.
-constexpr std::uint32_t WavefrontSize {AMD_GPU::WavefrontSize()};
-constexpr std::uint32_t Buffersize {WavefrontSize};
-
-// Dynamic shared memory for GPU kernels.
-extern __shared__ std::byte shared_memory[];
+constexpr auto WavefrontSize = AMD_GPU::WavefrontSize();
+constexpr auto Buffersize = WavefrontSize;
 
 template <typename RngState>
 __device__
-RngState* LoadRngState(const RngState* rng_state)
+auto* LoadRngState(const RngState* rng_state)
 {
-    const std::uint32_t rng_id = blockIdx.x * blockDim.y + threadIdx.y;
-    RngState* shared_rng_state = reinterpret_cast<RngState*>(shared_memory + rng_id * sizeof(RngState));
+    // Dynamic shared memory for GPU kernels.
+    extern __shared__ std::byte shared_memory[];
+
+    const auto rng_id = std::uint32_t{blockIdx.x * blockDim.y + threadIdx.y};
+    auto* shared_rng_state = reinterpret_cast<RngState*>(shared_memory + rng_id * sizeof(RngState));
     shared_rng_state->Load_1d(rng_state[rng_id]);
     return shared_rng_state;
 }
@@ -36,7 +36,7 @@ template <typename RngState>
 __device__
 void UnloadRngState(const RngState* shared_rng_state, RngState* rng_state)
 {
-    const std::uint32_t rng_id = blockIdx.x * blockDim.y + threadIdx.y;
+    const auto rng_id = std::uint32_t{blockIdx.x * blockDim.y + threadIdx.y};
     shared_rng_state->Unload_1d(rng_state[rng_id]);
 }
 
@@ -44,9 +44,9 @@ template <typename RngState>
 __global__
 void Kernel(RngState* rng_state, float* output, const std::uint32_t iterations)
 {
-    RngState* state = LoadRngState(rng_state);
-    const std::uint32_t rng_id = blockIdx.x * blockDim.y + threadIdx.y;
-    float* random_numbers = output + rng_id * Buffersize;
+    const auto rng_id = std::uint32_t{blockIdx.x * blockDim.y + threadIdx.y};
+    auto* state = LoadRngState(rng_state);
+    auto* random_numbers = output + rng_id * Buffersize;
 
     for (std::uint32_t i = 0; i < iterations; i += RngState::GetShuffleDistance())
     {
@@ -69,9 +69,9 @@ std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id
     static_assert(Target == DeviceName::AMD_GPU, "Target must be AMD_GPU.");
 
     AMD_GPU gpu;
-    const std::uint32_t num_thread_blocks = gpu.Concurrency();
-    const std::uint32_t rngs_per_thread_block = 256 / WavefrontSize;
-    const std::uint32_t num_rngs = num_thread_blocks * rngs_per_thread_block;
+    const auto num_thread_blocks = gpu.Concurrency();
+    const auto rngs_per_thread_block = 256 / WavefrontSize;
+    const auto num_rngs = num_thread_blocks * rngs_per_thread_block;
 
     std::cout << "rngs_per_thread_block: " << rngs_per_thread_block << std::endl;
     std::cout << "num_rngs: " << num_rngs << std::endl;
@@ -86,7 +86,7 @@ std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id
 
     GpuPointer<RngState> gpu_rng_state;
     {
-        RngState* ptr{};
+        RngState* ptr {};
         SafeCall(hipMalloc(&ptr, num_rngs * sizeof(RngState)));
         SafeCall(hipMemcpy(ptr, host_rng_state.data(), num_rngs * sizeof(RngState), hipMemcpyHostToDevice));
         gpu_rng_state.reset(ptr);
@@ -94,15 +94,15 @@ std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id
 
     GpuPointer<float> gpu_random_numbers;
     {
-        float* ptr{};
+        float* ptr {};
         SafeCall(hipMalloc(&ptr, num_rngs * Buffersize * sizeof(float)));
         gpu_random_numbers.reset(ptr);
     }
 
     // Configure kernel launch.
-    const dim3 grid {num_thread_blocks, 1, 1};
-    const dim3 block {WavefrontSize, rngs_per_thread_block, 1};
-    const std::size_t shared_mem_bytes = rngs_per_thread_block * sizeof(RngState); // Per thread block.
+    const auto grid = dim3{num_thread_blocks, 1, 1};
+    const auto block = dim3{WavefrontSize, rngs_per_thread_block, 1};
+    const auto shared_mem_bytes = rngs_per_thread_block * sizeof(RngState); // Per thread block.
 
     // Warmup.
     gpu.Execute([&] (auto& context)
@@ -123,7 +123,7 @@ std::pair<double, std::vector<float>> Benchmark(const std::uint32_t reporting_id
         gpu.Synchronize();
     }
     const auto endtime = std::chrono::high_resolution_clock::now();
-    const double elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0e-6;
+    const auto elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-6;
 
     // Extract random numbers from the GPU.
     std::vector<float> random_numbers(Buffersize);

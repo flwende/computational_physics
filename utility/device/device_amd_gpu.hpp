@@ -50,6 +50,12 @@ namespace XXX_NAMESPACE
             {
                 SafeCall(hipSetDevice(DeviceId()));
                 hipLaunchKernelGGL(func, grid, block, shared_mem_bytes, 0, std::forward<Args>(args)...);
+                if (auto err = hipGetLastError(); err != hipSuccess)
+                {
+                    const auto error_message = std::string{hipGetErrorString(err)};
+                    std::cerr << "HIP Error: " << error_message << std::endl;
+                    throw std::runtime_error(std::string("HIP error: ") + error_message);
+                }
                 //Synchronize();
             }
 
