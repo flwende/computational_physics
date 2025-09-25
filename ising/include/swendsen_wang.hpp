@@ -70,6 +70,8 @@ namespace XXX_NAMESPACE
             static constexpr std::uint32_t Dimension = 2;
 
         protected:
+            void Initialize(Lattice<2>& lattice);
+
             // Connected component labeling (ccl) based on an idea of Coddington and Baillie within tiles.
             template <std::uint32_t N_0 = 0>
             void CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<uint32_t, 2>& n_offset, const std::array<uint32_t, 2>& n_sub);

@@ -71,7 +71,11 @@ namespace XXX_NAMESPACE
     template <>
     std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<AMD_GPU>(AMD_GPU& gpu)
     {
-        return {1.0, 0.0};
+        SafeCall(hipSetDevice(gpu.DeviceId()));
+
+        SafeCall(hipMemcpy(RawPointer(), RawGpuPointer(), NumSites() * sizeof(Spin), hipMemcpyDeviceToHost));
+
+        return GetEnergyAndMagnetization<CPU>(gpu.Host());
     }
 
     template <>
@@ -83,8 +87,8 @@ namespace XXX_NAMESPACE
 
             Spin* ptr{};
             SafeCall(hipSetDevice(gpu.DeviceId()));
-            SafeCall(hipMalloc(&ptr, num_sites * sizeof(Spin)));
-            SafeCall(hipMemcpy(ptr, spins.RawPointer(), num_sites * sizeof(Spin), hipMemcpyHostToDevice));
+            SafeCall(hipMalloc(&ptr, NumSites() * sizeof(Spin)));
+            SafeCall(hipMemcpy(ptr, RawPointer(), NumSites() * sizeof(Spin), hipMemcpyHostToDevice));
             gpu_spins.reset(ptr);
 
             std::cout << "Done." << std::endl;

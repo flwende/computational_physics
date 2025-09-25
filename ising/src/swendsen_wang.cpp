@@ -25,15 +25,7 @@ namespace XXX_NAMESPACE
                 }
                 else
                 {
-                    if ((2 * wavefront_size) <= extent[0])
-                    {
-                        constexpr auto threads_per_block = std::uint32_t{256};
-                        return {2 * wavefront_size, threads_per_block / wavefront_size};
-                    }
-                    else
-                    {
-                        return {2 * wavefront_size / 4, 4};
-                    }
+                    return {2 * wavefront_size / 8, 8};
                 }
             }
         }
@@ -46,7 +38,7 @@ namespace XXX_NAMESPACE
     {}
 
     template <template <DeviceName> typename RNG, DeviceName Target>
-    void SwendsenWang_2D<RNG, Target>::Update(Lattice<2>& lattice, const float temperature)
+    void SwendsenWang_2D<RNG, Target>::Initialize(Lattice<2>& lattice)
     {
         if (!cluster.Initialized())
         {
@@ -64,10 +56,11 @@ namespace XXX_NAMESPACE
 
             // .. and initialize random number generators (count depends on the lattice extent).
             const auto concurrency = target.Concurrency();
-            const auto num_rngs = concurrency * (Target == DeviceName::CPU ? 1 :
+            const auto num_rngs =  (Target == DeviceName::CPU ? concurrency :
                 // GPU case: if tiles have '2 x WavefrontSize' extent, we need one RNG per row
                 // (y-direction). Otherwise, every tile is a warp and needs only 1 RNG.
-                (tile_size[0] == (2 * WavefrontSize) ? tile_size[1] : 1));
+                //(tile_size[0] == (2 * WavefrontSize) ? tile_size[1] : 1));
+                ((extent[0] + tile_size[0] - 1) / tile_size[0]) * ((extent[1] + tile_size[1] - 1) / tile_size[1]));
 
             for (std::uint32_t i = 0; i < num_rngs; ++i)
                 rng_state.emplace_back(i + 1);
@@ -89,6 +82,12 @@ namespace XXX_NAMESPACE
                 InitializeGpuCluster(lattice.NumSites());
             }
         }
+    }
+
+    template <template <DeviceName> typename RNG, DeviceName Target>
+    void SwendsenWang_2D<RNG, Target>::Update(Lattice<2>& lattice, const float temperature)
+    {
+        Initialize(lattice);
 
         // Probability for adding aligned neighboring sites to the cluster.
         const float p_add = 1.0f - static_cast<float>(std::exp(-2.0f / temperature));

@@ -1,7 +1,7 @@
 #if defined __HIPCC__
 
 __device__
-std::uint32_t Get(const std::int32_t index) const 
+auto Get(const std::int32_t index) const
 { 
     return state[index];
 }
@@ -9,7 +9,7 @@ std::uint32_t Get(const std::int32_t index) const
 __device__
 void Load_1d(const LCG32_State<WaveFrontSize>& other)
 {
-    const std::int32_t index = threadIdx.x;
+    const auto index = threadIdx.x;
 
     state[index] = other.state[index];
     a[index] = other.a[index];
@@ -22,7 +22,7 @@ void Load_1d(const LCG32_State<WaveFrontSize>& other)
 __device__
 void Load(const LCG32_State<WaveFrontSize>& other)
 {
-    const std::int32_t index = threadIdx.z * blockDim.x * blockDim.y
+    const auto index = threadIdx.z * blockDim.x * blockDim.y
         + threadIdx.y * blockDim.x + threadIdx.x;
 
     state[index] = other.state[index];
@@ -36,7 +36,7 @@ void Load(const LCG32_State<WaveFrontSize>& other)
 __device__
 void Unload_1d(LCG32_State<WaveFrontSize>& other) const
 {
-    const std::int32_t index = threadIdx.x;
+    const auto index = threadIdx.x;
 
     other.state[index] = state[index];
     other.a[index] = a[index];
@@ -49,7 +49,7 @@ void Unload_1d(LCG32_State<WaveFrontSize>& other) const
 __device__
 void Unload(LCG32_State<WaveFrontSize>& other) const
 {
-    const std::int32_t index = threadIdx.z * blockDim.x * blockDim.y
+    const auto index = threadIdx.z * blockDim.x * blockDim.y
         + threadIdx.y * blockDim.x + threadIdx.x;
 
     other.state[index] = state[index];
@@ -63,13 +63,13 @@ void Unload(LCG32_State<WaveFrontSize>& other) const
 __device__
 void Shuffle_1d()
 {
-    const std::int32_t index = threadIdx.x;
+    const auto index = threadIdx.x;
 
     if (index == 0)
         iteration += ShuffleDistance;
 
-    constexpr std::int32_t m = WaveFrontSize - 1;
-    const std::int32_t shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
+    constexpr auto m = WaveFrontSize - 1;
+    const auto shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
 
     a[index] = a[(index + shuffle_val) & m];
     c[index] = c[(index + shuffle_val) & m];
@@ -84,8 +84,8 @@ void Shuffle()
     if (index == 0)
         iteration += ShuffleDistance;
 
-    constexpr std::int32_t m = WaveFrontSize - 1;
-    const std::int32_t shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
+    constexpr auto m = WaveFrontSize - 1;
+    const auto shuffle_val = state[iteration & m] + (iteration & 1 ? 0 : 1);
 
     a[index] = a[(index + shuffle_val) & m];
     c[index] = c[(index + shuffle_val) & m];
@@ -94,7 +94,7 @@ void Shuffle()
 __device__
 void Update_1d()
 {
-    const std::int32_t index = threadIdx.x;
+    const auto index = threadIdx.x;
 
     state[index] = a[index] * state[index] + c[index];
 }
@@ -102,7 +102,7 @@ void Update_1d()
 __device__
 void Update()
 {
-    const std::int32_t index = threadIdx.z * blockDim.x * blockDim.y
+    const auto index = threadIdx.z * blockDim.x * blockDim.y
         + threadIdx.y * blockDim.x + threadIdx.x;
 
     state[index] = a[index] * state[index] + c[index];

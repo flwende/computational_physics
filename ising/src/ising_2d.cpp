@@ -56,7 +56,10 @@ int main(int argc, char **argv)
                   << "  --temperature      Set temperature (default: 2.2691853)" << std::endl
                   << "  --algorithm        Set algorithm (default: swendsen_wang)" << std::endl
                   << "  --rng=<name>       Set RNG type (default: lcg32)" << std::endl
-                  << "  --target=<name>    Set target device (default: cpu)" << std::endl;
+#if defined __HIPCC__
+                  << "  --target=<name>    Set target device (default: cpu)" << std::endl
+                  << "      Supported target devices: cpu, amd_gpu" << std::endl;
+#endif
         return 0;
     }
 

@@ -9,7 +9,7 @@ include_directories(${CMAKE_BINARY_DIR}/../random/include)
 
 target_include_directories (Ising2D PUBLIC "/usr/include/hip")
 target_compile_definitions(Ising2D PUBLIC RANDOM_SHUFFLE_STATE)
-target_compile_options(Ising2D PUBLIC -O3 -fopenmp-simd -ftree-vectorize -ffast-math)
+target_compile_options(Ising2D PUBLIC -O3 -fopenmp-simd -ftree-vectorize -ffast-math -save-temps)
 
 target_link_options(Ising2D PUBLIC)
 target_link_libraries (Ising2D LINK_PUBLIC "m")

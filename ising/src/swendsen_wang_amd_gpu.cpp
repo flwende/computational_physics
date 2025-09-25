@@ -11,12 +11,12 @@
 #define XXX_NAMESPACE cp
 #endif
 
-// Dynamic shared memory for GPU kernels.
-extern __shared__ std::byte shared_memory[];
-
 namespace XXX_NAMESPACE
 {
+    using GpuSpin = std::uint16_t;
     using GpuLabelType = std::uint16_t;
+
+    constexpr auto WavefrontSize = AMD_GPU::WavefrontSize();
 
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::InitializeGpuRngState()
@@ -51,258 +51,222 @@ namespace XXX_NAMESPACE
         }
     }
 
-    template <std::uint32_t N>
-    __host__ __device__
-    auto Ceil(const std::uint32_t value)
-    {
-        return ((value + N - 1) / N) * N;
-    }
-
-    template <typename RngState>
+    template <std::uint32_t N, typename RngState>
     __device__
-    auto* LoadRngState(const RngState* rng_state)
+    auto GetRandomNumbers(RngState* rng_state, const std::uint32_t rng_state_shift, const bool shuffle_state = false)
     {
-        auto* shared_rng_state = reinterpret_cast<RngState*>(shared_memory);
-        shared_rng_state->Load(rng_state[blockIdx.x]);
-        return shared_rng_state;
-    }
+        using ReturnType = std::conditional_t<
+            N == 4, float4, std::conditional_t<
+            N == 2, float2, void>>;
 
-    template <typename RngState>
-    __device__
-    void UnloadRngState(const RngState* shared_rng_state, RngState* rng_state)
-    {
-        shared_rng_state->Unload(rng_state[blockIdx.x]);
+        __shared__ std::byte shm_state[sizeof(RngState)];
+
+        auto* state = reinterpret_cast<RngState*>(&shm_state[0]);
+        const auto rng_id = (blockIdx.y * gridDim.x + blockIdx.x + rng_state_shift) % (gridDim.x * gridDim.y) ;
+        state->Load(rng_state[rng_id]);
+
+        const auto id = threadIdx.y * blockDim.x + threadIdx.x;
+        auto value = ReturnType{};
+        if constexpr (N == 4)
+        {
+            state->Update(); value.x = 2.3283064370807974E-10F * state->Get(id);
+            state->Update(); value.y = 2.3283064370807974E-10F * state->Get(id);
+            state->Update(); value.z = 2.3283064370807974E-10F * state->Get(id);
+            state->Update(); value.w = 2.3283064370807974E-10F * state->Get(id);
+        }
+        else if constexpr (N == 2)
+        {
+            state->Update(); value.x = 2.3283064370807974E-10F * state->Get(id);
+            state->Update(); value.y = 2.3283064370807974E-10F * state->Get(id);
+        }
+        else
+        {
+            static_assert(false, "Not implemented.");
+        }
+
+#if defined RANDOM_SHUFFLE_STATE
+        if (shuffle_state && (rng_state_shift % RngState::GetShuffleDistance()) == 0)
+            state->Shuffle();
+#endif
+
+        state->Unload(rng_state[rng_id]);
+
+        return value;
     }
 
     template <typename Spin, typename LabelType, typename RngState>
     __global__
     void AssignLabels_Kernel(const Spin* lattice, const std::uint32_t extent_0, const std::uint32_t extent_1,
-        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1,
-        LabelType* cluster, RngState* rng_state, const float p_add)
+        LabelType* cluster, RngState* rng_state, const std::uint32_t rng_state_shift, const float p_add)
     {
-        const std::uint32_t n_0 = extent_0 / n_sub_0;
-        const std::uint32_t n_1 = extent_1 / n_sub_1;
-        const std::uint32_t n_total = n_0 * n_1;
+        __shared__ GpuSpin sub_lattice[2 * WavefrontSize];
+        __shared__ GpuLabelType sub_cluster[2 * WavefrontSize];
 
-        RngState* state = LoadRngState(rng_state);
-        Spin* sub_lattice = reinterpret_cast<Spin*>(shared_memory + Ceil<64>(sizeof(RngState)));
-        GpuLabelType* sub_cluster = reinterpret_cast<GpuLabelType*>(shared_memory + Ceil<64>(sizeof(RngState)) +
-            n_sub_0 * n_sub_1 * sizeof(Spin));
-        
-        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        const auto block_x = 2 * blockDim.x;
+        const auto block_y = blockDim.y;
+
+        const auto tile_x = ((blockIdx.x + 1) == gridDim.x ? extent_0 - blockIdx.x * block_x : block_x);
+        const auto tile_y = ((blockIdx.y + 1) == gridDim.y ? extent_1 - blockIdx.y * block_y : block_y);
+
+        const auto tx = 2 * threadIdx.x;
+        const auto ty = threadIdx.y;
+        const auto x = blockIdx.x * block_x + tx;
+        const auto y = blockIdx.y * block_y + ty;
+
+        const auto active = (x < extent_0) && (y < extent_1);
+
+        // Load the sub-lattice for the current block and initialize cluster.
+        if (active)
         {
-            const std::uint32_t bx = (n % n_0);
-            const std::uint32_t by = (n / n_0);
+            sub_lattice[ty * block_x + tx] = lattice[y * extent_0 + x];
+            sub_lattice[ty * block_x + tx + 1] = lattice[y * extent_0 + x + 1];
 
-            // Load the sub-lattice for the current block.
-            sub_lattice[threadIdx.y * n_sub_0 + threadIdx.x] = lattice[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x];
-            sub_lattice[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] = lattice[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + blockDim.x + threadIdx.x];
-            
-            // Initialize the cluster labels.
-            sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] = threadIdx.y * n_sub_0 + threadIdx.x;
-            sub_cluster[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] = threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x;
+            sub_cluster[ty * block_x + tx] = ty * tile_x + tx;
+            sub_cluster[ty * block_x + tx + 1] = ty * tile_x + tx + 1;
+        }
+        else
+        {
+            sub_lattice[ty * block_x + tx] = 0;
+            sub_lattice[ty * block_x + tx + 1] = 0;
 
-            // Connect 1-direction.
+            sub_cluster[ty * block_x + tx] = 0;
+            sub_cluster[ty * block_x + tx + 1] = 0;
+        }
+
+        const auto& r = GetRandomNumbers<4>(rng_state, rng_state_shift, true /* shuffle_state */);
+
+        // Connect 1-direction.
+        if (active &&
+            (sub_lattice[ty * block_x + tx] & 0x1) == (sub_lattice[ty * block_x + tx + 1] & 0x1) &&
+            r.x < p_add)
+        {
+            sub_lattice[ty * block_x + tx] |= 0x2;
+        }
+
+        if (active && (tx + 1) < (tile_x - 1) &&
+            (sub_lattice[ty * block_x + tx + 1] & 0x1) == (sub_lattice[ty * block_x + tx + 2] & 0x1) &&
+            r.y < p_add)
+        {
+            sub_lattice[ty * block_x + tx + 1] |= 0x2;
+        }
+
+        // Connect 2-direction.
+        if (ty < (tile_y - 1))
+        {
+            if (active &&
+                (sub_lattice[ty * block_x + tx] & 0x1) == (sub_lattice[(ty + 1) * block_x + tx] & 0x1) &&
+                r.z < p_add)
             {
-                state->Update();
-                const float r_1 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
-                if (sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x] == sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x + 1] &&
-                    r_1 < p_add)
-                {
-                    sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x] |= 0x2;
-                }
+                sub_lattice[ty * block_x + tx] |= 0x4;
+            }
 
-                state->Update();
-                const float r_2 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
-                if (threadIdx.x < (blockDim.x - 1) &&
-                    sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x + 1] == sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x + 2] &&
-                    r_2 < p_add)
+            if (active &&
+                (sub_lattice[ty * block_x + tx + 1] & 0x1) == (sub_lattice[(ty + 1) * block_x + tx + 1] & 0x1) &&
+                r.w < p_add)
+            {
+                sub_lattice[ty * block_x + tx + 1] |= 0x4;
+            }
+        }
+
+        // Reduce labels: we can include all threads here as links have
+        // been established for sites inside the sub-lattice only, and
+        // hence data access remains inside the sub-lattice.
+        const auto idx_even = ty * block_x + tx + (ty & 1);
+        const auto idx_odd = ty * block_x + tx + ((ty + 1) & 1);
+        bool labels_changed = true;
+        while (__any(labels_changed))
+        {
+            labels_changed = false;
+
+            // 1-direction reduction (even).
+            if (sub_lattice[idx_even] & 0x2)
+            {
+                const auto a = sub_cluster[idx_even];
+                const auto b = sub_cluster[idx_even + 1];
+                if (a != b)
                 {
-                    sub_lattice[threadIdx.y * n_sub_0 + 2 * threadIdx.x + 1] |= 0x2;
+                    const auto ab = min(a, b);
+                    sub_cluster[idx_even] = ab;
+                    sub_cluster[idx_even + 1] = ab;
+                    labels_changed = true;
                 }
             }
 
-            // Connect 2-direction.
-            if (threadIdx.y < (blockDim.y - 1))
+            // 2-drection reduction (even).
+            if (sub_lattice[idx_even] & 0x4)
             {
-                state->Update();
-                const float r_1 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
-                if (sub_lattice[threadIdx.y * n_sub_0 + threadIdx.x] == sub_lattice[(threadIdx.y + 1) * n_sub_0 + threadIdx.x] &&
-                    r_1 < p_add)
+                const auto a = sub_cluster[idx_even];
+                const auto b = sub_cluster[idx_even + block_x];
+                if (a != b)
                 {
-                    sub_lattice[threadIdx.y * n_sub_0 + threadIdx.x] |= 0x4;
-                }
-
-                state->Update();
-                const float r_2 = 2.3283064370807974E-10F * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
-                if (sub_lattice[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x] == sub_lattice[(threadIdx.y + 1) * n_sub_0 + blockIdx.x + threadIdx.x] &&
-                    r_2 < p_add)
-                {
-                    sub_lattice[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x] |= 0x4;
+                    const auto ab = min(a, b);
+                    sub_cluster[idx_even] = ab;
+                    sub_cluster[idx_even + block_x] = ab;
+                    labels_changed = true;
                 }
             }
 
-            #if defined RANDOM_SHUFFLE_STATE
-            state->Shuffle();
-            #endif
-
-            // Reduce labels.
-            bool labels_changed = true;
-            while (__any(labels_changed))
+            // 1-direction reduction (odd).
+            if (sub_lattice[idx_odd] & 0x2)
             {
-                labels_changed = false;
-
-                // 1-drection reduction.
-                if (sub_lattice[threadIdx.y * n_sub_0 + threadIdx.x] & 0x2)
+                const auto a = sub_cluster[idx_odd];
+                const auto b = sub_cluster[idx_odd + 1];
+                if (a != b)
                 {
-                    const auto a = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x];
-                    const auto b = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x + 1];
-                    if (a != b)
-                    {
-                        const auto ab = a < b ? a : b;
-                        sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] = ab;
-                        sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x + 1] = ab;
-                        labels_changed = true;
-                    }
-                }
-
-                if (sub_lattice[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x] & 0x2)
-                {
-                    const auto a = sub_cluster[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x];
-                    const auto b = sub_cluster[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x + 1];
-                    if (a != b)
-                    {
-                        const auto ab = a < b ? a : b;
-                        sub_cluster[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x] = ab;
-                        sub_cluster[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x + 1] = ab;
-                        labels_changed = true;
-                    }
-                }
-
-                // 2-drection reduction.
-                if (sub_lattice[threadIdx.y * n_sub_0 + threadIdx.x] & 0x4)
-                {
-                    const auto a = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x];
-                    const auto b = sub_cluster[(threadIdx.y + 1) * n_sub_0 + threadIdx.x];
-                    if (a != b)
-                    {
-                        const auto ab = a < b ? a : b;
-                        sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] = ab;
-                        sub_cluster[(threadIdx.y + 1) * n_sub_0 + threadIdx.x] = ab;
-                        labels_changed = true;
-                    }
-                }
-
-                if (sub_lattice[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x] & 0x4)
-                {
-                    const auto a = sub_cluster[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x];
-                    const auto b = sub_cluster[(threadIdx.y + 1) * n_sub_0 + blockIdx.x + threadIdx.x];
-                    if (a != b)
-                    {
-                        const auto ab = a < b ? a : b;
-                        sub_cluster[threadIdx.y * n_sub_0 + blockIdx.x + threadIdx.x] = ab;
-                        sub_cluster[(threadIdx.y + 1) * n_sub_0 + blockIdx.x + threadIdx.x] = ab;
-                        labels_changed = true;
-                    }
+                    const auto ab = min(a, b);
+                    sub_cluster[idx_odd] = ab;
+                    sub_cluster[idx_odd + 1] = ab;
+                    labels_changed = true;
                 }
             }
 
-            // Write back cluster.
+            // 2-drection reduction (odd).
+            if (sub_lattice[idx_odd] & 0x4)
             {
-                const std::uint32_t a = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] % n_sub_0;
-                const std::uint32_t b = sub_cluster[threadIdx.y * n_sub_0 + threadIdx.x] / n_sub_0;
-                cluster[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x] = (by * n_sub_1 + b) * extent_0 + bx * n_sub_0 + a;
+                const auto a = sub_cluster[idx_odd];
+                const auto b = sub_cluster[idx_odd + block_x];
+                if (a != b)
+                {
+                    const auto ab = min(a, b);
+                    sub_cluster[idx_odd] = ab;
+                    sub_cluster[idx_odd + block_x] = ab;
+                    labels_changed = true;
+                }
             }
-            {
-                const std::uint32_t a = sub_cluster[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] % n_sub_0;
-                const std::uint32_t b = sub_cluster[threadIdx.y * n_sub_0 + blockDim.x + threadIdx.x] / n_sub_0;
-                cluster[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + blockDim.x + threadIdx.x] = (by * n_sub_1 + b) * extent_0 + bx * n_sub_0 + a;
-            }
-        }   
+        }
 
-        UnloadRngState(state, rng_state);
+        // Write back cluster.
+        if (active)
+        {
+            const auto a = sub_cluster[ty * block_x + tx] % tile_x;
+            const auto b = sub_cluster[ty * block_x + tx] / tile_x;
+            cluster[y * extent_0 + x] = (blockIdx.y * block_y + b) * extent_0 + blockIdx.x * block_x + a;
+        }
+
+        if (active)
+        {
+            const auto a = sub_cluster[ty * block_x + tx + 1] % tile_x;
+            const auto b = sub_cluster[ty * block_x + tx + 1] / tile_x;
+            cluster[y * extent_0 + x + 1] = (blockIdx.y * block_y + b) * extent_0 + blockIdx.x * block_x + a;
+        }
     }
 
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::AssignLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
-        return;
-
-        static bool ran_already = false;
-        //if (ran_already)
-        //    return;
+        // Configure kernel launch.
+        const auto& extent = lattice.Extent();
+        const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
+        const auto block = dim3{tile_size[0] / 2, tile_size[1], 1};
 
         HipContext& gpu = static_cast<HipContext&>(context);
-        const std::uint32_t num_thread_blocks = 16;//gpu.Device().Concurrency();
 
-        //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
-
-        const std::uint32_t extent_0 = lattice.Extent()[0];
-        const std::uint32_t extent_1 = lattice.Extent()[1];
-
-        // Configure kernel launch.
-        const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{static_cast<std::uint32_t>(tile_size[0]), static_cast<std::uint32_t>(tile_size[1]), 1};
-        const std::size_t shared_mem_bytes = Ceil<64>(sizeof(RngState)) +
-            2 * tile_size[0] * tile_size[1] * (sizeof(Lattice<2>::Spin) + sizeof(GpuLabelType));
-
-        //std::cout << "Shmem: " << shared_mem_bytes << " Bytes" << std::endl;
         SafeCall(hipSetDevice(gpu.Id()));
-        AssignLabels_Kernel<<<grid, block, shared_mem_bytes>>>(lattice.RawGpuPointer(),
-            extent_0, extent_1, 2 * tile_size[0], tile_size[1],
-            gpu_cluster.get(), gpu_rng_state.get(), p_add);
+
+        AssignLabels_Kernel<<<grid, block>>>(lattice.RawGpuPointer(), extent[0], extent[1],
+            gpu_cluster.get(), gpu_rng_state.get(), 100 * drand48(), p_add);
 
         gpu.Synchronize();
-        
-        if (false && !ran_already)
-        {
-            SafeCall(hipMemcpy(cluster.RawPointer(), gpu_cluster.get(), lattice.NumSites() * sizeof(LabelType), hipMemcpyDeviceToHost));
-
-            for (std::uint32_t j = 0; j < extent_1; ++j)
-            {
-                for (std::uint32_t i = 0; i < extent_0; ++i)
-                {
-                    std::cout << std::setw(3) << cluster[j][i] << " ";
-                }
-                std::cout << std::endl;
-            }
-
-            ran_already = true;
-        }
-        /*
-        auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::int32_t thread_id = thread_group.ThreadId();
-        const std::int32_t num_threads = thread_group.NumThreads();
-
-        const std::int32_t extent_0 = lattice.Extent()[0];
-        const std::int32_t extent_1 = lattice.Extent()[1];
-
-        const std::int32_t n_0 = extent_0 / tile_size[0];
-        const std::int32_t n_1 = extent_1 / tile_size[1];
-        const std::int32_t n_total = n_0 * n_1;
-
-        const std::int32_t n_chunk = (n_total + num_threads - 1) / num_threads;
-        const std::int32_t n_start = thread_id * n_chunk;
-        const std::int32_t n_end = std::min(n_start + n_chunk, n_total);
-
-        for (std::int32_t n = n_start; n < n_end; ++n)
-        {
-            const std::int32_t j = (n / n_0) * tile_size[1];
-            const std::int32_t i = (n % n_0) * tile_size[0];
-            const std::array<int32_t, 2> n_offset{i, j};
-            const std::array<int32_t, 2> n_sub{std::min(tile_size[0], extent_0 - i), std::min(tile_size[1], extent_1 - j)};
-            if (n_sub[0] == tile_size[0])
-            {
-                // We can call a version of that method with the extent in 0-direction being
-                // a compile time constant (hopefully allowing the compiler to do better optimizations)
-                CCL_SelfLabeling<tile_size[0]>(context, lattice, p_add, n_offset, n_sub);
-            }
-            else
-            {
-                CCL_SelfLabeling(context, lattice, p_add, n_offset, n_sub);
-            }
-        }
-        */
     }
 
     template <typename LabelType>
@@ -312,158 +276,62 @@ namespace XXX_NAMESPACE
     template <typename Spin, typename LabelType, typename RngState>
     __global__
     void MergeLabels_Kernel(const Spin* lattice, const std::uint32_t extent_0, const std::uint32_t extent_1,
-        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1,
-        LabelType* cluster, RngState* rng_state, const float p_add)
+        const std::uint32_t block_x, const std::uint32_t block_y,
+        LabelType* cluster, RngState* rng_state, const std::uint32_t rng_state_shift, const float p_add)
     {
-        const std::uint32_t n_0 = extent_0 / n_sub_0;
-        const std::uint32_t n_1 = extent_1 / n_sub_1;
-        const std::uint32_t n_total = n_0 * n_1;
+        const auto tile_x = ((blockIdx.x + 1) == gridDim.x ? extent_0 - blockIdx.x * block_x : block_x);
+        const auto tile_y = ((blockIdx.y + 1) == gridDim.y ? extent_1 - blockIdx.y * block_y : block_y);
 
-        RngState* state = LoadRngState(rng_state);
+        const auto& r = GetRandomNumbers<2>(rng_state, rng_state_shift);
 
-        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        // 1-direction.
+        if (threadIdx.x < tile_y)
         {
-            const std::uint32_t bx = (n % n_0);
-            const std::uint32_t by = (n / n_0);
+            const auto index = (blockIdx.y * block_y + threadIdx.x) * extent_0 + blockIdx.x * block_x + tile_x - 1;
+            const auto index_p1 = index + 1 - ((blockIdx.x + 1) == gridDim.x ? extent_0 : 0);
 
-            state->Update();
-            const float r_1 = 2.3283064370807974E-10F * state->Get(threadIdx.x);
-            state->Update();
-            const float r_2 = 2.3283064370807974E-10F * state->Get(threadIdx.x);
-
-            if (threadIdx.x < n_sub_1)
+            if (lattice[index] == lattice[index_p1] && r.x < p_add)
             {
-                const std::uint32_t idx = ((by * n_sub_1) + threadIdx.x) * extent_0 + (bx + 1) * n_sub_0 - 1;
-                const std::uint32_t idx_p1 = idx + 1 - (bx == (n_0 - 1) ? extent_0 : 0);
-
-                if (lattice[idx] == lattice[idx_p1] && r_1 < p_add)
-                {
-                    LabelType a = cluster[idx];
-                    LabelType b = cluster[idx_p1];
-                    if (a != b)
-                        Merge(cluster, a, b);
-                }
-            }
-
-            if (threadIdx.x < n_sub_0)
-            {
-                const std::uint32_t idx = (((by + 1) * n_sub_1) - 1) * extent_0 + bx * n_sub_0 + threadIdx.x;
-                const std::uint32_t idx_p2 = idx + extent_0 - (by == (n_1 - 1) ? extent_0 * extent_1 : 0);
-
-                if (lattice[idx] == lattice[idx_p2] && r_2 < p_add)
-                {
-                    LabelType a = cluster[idx];
-                    LabelType b = cluster[idx_p2];
-                    if (a != b)
-                        Merge(cluster, a, b);
-                }
+                LabelType a = cluster[index];
+                LabelType b = cluster[index_p1];
+                if (a != b)
+                    Merge(cluster, a, b);
             }
         }
 
-        UnloadRngState(state, rng_state);
+        // 2-direction.
+        if (threadIdx.x < tile_x)
+        {
+            const auto index = (blockIdx.y * block_y + (tile_y - 1)) * extent_0 + blockIdx.x * block_x + threadIdx.x;
+            const auto index_p1 = index + extent_0 - ((blockIdx.y + 1) == gridDim.y ? extent_0 * extent_1 : 0);
+
+            if (lattice[index] == lattice[index_p1] && r.y < p_add)
+            {
+                LabelType a = cluster[index];
+                LabelType b = cluster[index_p1];
+                if (a != b)
+                    Merge(cluster, a, b);
+            }
+        }
     }
 
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::MergeLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
-        return;
-
-        static bool ran_already = true;
-        //if (ran_already)
-        //    return;
-
-        HipContext& gpu = static_cast<HipContext&>(context);
-        const std::uint32_t num_thread_blocks = gpu.Device().Concurrency();
-
-        //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
-
-        const std::uint32_t extent_0 = lattice.Extent()[0];
-        const std::uint32_t extent_1 = lattice.Extent()[1];
-
         // Configure kernel launch.
-        const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{static_cast<std::uint32_t>(std::max(2 * tile_size[0], tile_size[1])), 1, 1};
-        const std::size_t shared_mem_bytes = Ceil<64>(sizeof(RngState));
-
-        //std::cout << "Shmem: " << shared_mem_bytes << " Bytes" << std::endl;
+        const auto& extent = lattice.Extent();
+        const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
+        const auto block = dim3{std::min(WavefrontSize, std::max(tile_size[0], tile_size[1])), 1, 1};
         
+        HipContext& gpu = static_cast<HipContext&>(context);
+
         SafeCall(hipSetDevice(gpu.Id()));
-        MergeLabels_Kernel<<<grid, block, shared_mem_bytes>>>(lattice.RawGpuPointer(),
-            extent_0, extent_1, 2 * tile_size[0], tile_size[1],
-            gpu_cluster.get(), gpu_rng_state.get(), p_add);
+
+        MergeLabels_Kernel<<<grid, block>>>(lattice.RawGpuPointer(), extent[0], extent[1],
+            tile_size[0], tile_size[1],
+            gpu_cluster.get(), gpu_rng_state.get(), 100 * drand48(), p_add);
 
         gpu.Synchronize();
-        
-        if (false && !ran_already)
-        {
-            SafeCall(hipMemcpy(cluster.RawPointer(), gpu_cluster.get(), lattice.NumSites() * sizeof(LabelType), hipMemcpyDeviceToHost));
-
-            for (std::uint32_t j = 0; j < extent_1; ++j)
-            {
-                for (std::uint32_t i = 0; i < extent_0; ++i)
-                {
-                    std::cout << std::setw(3) << cluster[j][i] << " ";
-                }
-                std::cout << std::endl;
-            }
-
-            ran_already = true;
-        }
-
-        /*
-        auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::int32_t thread_id = thread_group.ThreadId();
-        const std::int32_t num_threads = thread_group.NumThreads();
-
-        const std::int32_t extent_0 = lattice.Extent()[0];
-        const std::int32_t extent_1 = lattice.Extent()[1];
-
-        const std::int32_t n_0 = extent_0 / tile_size[0];
-        const std::int32_t n_1 = extent_1 / tile_size[1];
-        const std::int32_t n_total = n_0 * n_1;
-
-        const std::int32_t n_chunk = (n_total + num_threads - 1) / num_threads;
-        const std::int32_t n_start = thread_id * n_chunk;
-        const std::int32_t n_end = std::min(n_start + n_chunk, n_total);
-
-        constexpr std::int32_t buffer_size = tile_size[0] + tile_size[1];
-        std::vector<float> buffer(buffer_size);
-
-        for (std::int32_t n = n_start; n < n_end; ++n)
-        {
-            const std::int32_t j = (n / n_0) * tile_size[1];
-            const std::int32_t i = (n % n_0) * tile_size[0];
-
-            rng[thread_id]->NextReal(buffer);
-
-            const std::int32_t jj_max = std::min(tile_size[1], extent_1 - j);
-            const std::int32_t ii_max = std::min(tile_size[0], extent_0 - i);
-
-            // Merge in 1-direction
-            for (std::int32_t ii = 0; ii < ii_max; ++ii)
-            {
-                if (buffer[ii] < p_add && lattice[j + jj_max - 1][i + ii] == lattice[(j + jj_max) % extent_1][i + ii])
-                {
-                    LabelType a = cluster[j + jj_max - 1][i + ii];
-                    LabelType b = cluster[(j + jj_max) % extent_1][i + ii];
-                    if (a != b)
-                        Merge(cluster.RawPointer(), a, b);
-                }
-            }
-
-            // merge in 0-direction
-            for (std::int32_t jj = 0; jj < jj_max; ++jj)
-            {
-                if (buffer[tile_size[0] + jj] < p_add && lattice[j + jj][i + ii_max - 1] == lattice[j + jj][(i + ii_max) % extent_0])
-                {
-                    LabelType a = cluster[j + jj][i + ii_max - 1];
-                    LabelType b = cluster[j + jj][(i + ii_max) % extent_0];
-                    if (a != b)
-                        Merge(cluster.RawPointer(), a, b);
-                }
-            }
-        }
-        */
     }
 
     // Helper method to establish label equivalences, thus merging clusters
@@ -520,123 +388,68 @@ namespace XXX_NAMESPACE
 
     template <typename LabelType>
     __global__
-    void ResolveLabels_Kernel(LabelType* cluster, const std::uint32_t extent_0, const std::uint32_t extent_1,
-        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1)
+    void ResolveLabels_Kernel(LabelType* cluster, const std::uint32_t extent_0, const std::uint32_t extent_1)
     {
-        const std::uint32_t n_0 = extent_0 / n_sub_0;
-        const std::uint32_t n_1 = extent_1 / n_sub_1;
-        const std::uint32_t n_total = n_0 * n_1;
+        const auto block_x = blockDim.x;
+        const auto block_y = blockDim.y;
 
-        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        const auto tx = threadIdx.x;
+        const auto ty = threadIdx.y;
+        const auto x = blockIdx.x * block_x + tx;
+        const auto y = blockIdx.y * block_y + ty;
+
+        const auto active = (x < extent_0) && (y < extent_1);
+
+        if (active)
         {
-            const std::uint32_t bx = (n % n_0);
-            const std::uint32_t by = (n / n_0);
-            const std::uint32_t idx = (by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x;
-            /*
-            LabelType c = cluster[idx];
+            const auto index = y * extent_0 + x;
+
+            auto c = cluster[index];
             while (c != cluster[c])
                 c = cluster[c];
-            */
-            //cluster[idx] = c;
-            //atomicExch(cluster + idx, c);
-            
-            
-            //LabelType c = cluster[idx];
-            LabelType c = atomicOr(cluster + idx, 0x0);
-            LabelType a{};
-            do
-            {
-                a = c;
-                //c = cluster[c];
-                c = atomicOr(cluster + c, 0x0);
-            }
-            while (a != c);
-            atomicExch(cluster + idx, c);
+
+            atomicExch(cluster + index, c);
         }
     }
-
 
     // Resolve all label equivalences
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::ResolveLabels(Context& context)
     {
-        return;
+        // Configure kernel launch.
+        const auto& extent = cluster.Extent();
 
-        static std::uint32_t iteration = 0;
-        //if (ran_already)
-        //    return;
+        // This kernel will be mostly latency and memory bandwidth bound: we need many threads per block.
+        const auto& tile_size = std::array<std::uint32_t, 2>{64, 8};
+        const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
+        const auto block = dim3{tile_size[0], tile_size[1], 1};
 
         HipContext& gpu = static_cast<HipContext&>(context);
-        const std::uint32_t num_thread_blocks = gpu.Device().Concurrency();
-        //const std::uint32_t num_thread_blocks = 16;
 
-        //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
-
-        const std::uint32_t extent_0 = cluster.Extent()[0];
-        const std::uint32_t extent_1 = cluster.Extent()[1];
-
-        // Configure kernel launch.
-        const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{static_cast<std::uint32_t>(2 * tile_size[0]), static_cast<std::uint32_t>(tile_size[1]), 1};
-        
         SafeCall(hipSetDevice(gpu.Id()));
-        ResolveLabels_Kernel<<<grid, block>>>(gpu_cluster.get(), extent_0, extent_1, 2 * tile_size[0], tile_size[1]);
+
+        ResolveLabels_Kernel<<<grid, block>>>(gpu_cluster.get(), extent[0], extent[1]);
 
         gpu.Synchronize();
-        
-        if (++iteration == 100)
-        {
-            SafeCall(hipMemcpy(cluster.RawPointer(), gpu_cluster.get(), extent_0 * extent_1 * sizeof(LabelType), hipMemcpyDeviceToHost));
-
-            for (std::uint32_t j = 0; j < extent_1; ++j)
-            {
-                for (std::uint32_t i = 0; i < extent_0; ++i)
-                {
-                    std::cout << std::setw(3) << cluster[j][i] << " ";
-                }
-                std::cout << std::endl;
-            }
-        }
-
-        /*
-        auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::int32_t threads_id = thread_group.ThreadId();
-        const std::int32_t num_threads = thread_group.NumThreads();
-
-        const std::size_t num_sites = cluster.Extent()[0] * cluster.Extent()[1];
-        const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
-        const std::size_t start = threads_id * chunk_size;
-        const std::size_t end = std::min(start + chunk_size, num_sites);
-
-        auto* ptr = cluster.RawPointer();
-
-        for (std::size_t i = start; i < end; ++i)
-        {
-            LabelType c = ptr[i];
-            while (c != ptr[c])
-                c = ptr[c];
-            ptr[i] = c;
-        }
-        */
     }
 
     template <typename Spin, typename LabelType>
     __global__
     void FlipClusters_Kernel(Spin* lattice, const std::uint32_t extent_0, const std::uint32_t extent_1,
-        const std::uint32_t n_sub_0, const std::uint32_t n_sub_1,
         const LabelType* cluster)
     {
-        const std::uint32_t n_0 = extent_0 / n_sub_0;
-        const std::uint32_t n_1 = extent_1 / n_sub_1;
-        const std::uint32_t n_total = n_0 * n_1;
+        const auto block_x = blockDim.x;
+        const auto block_y = blockDim.y;
 
-        for (std::uint32_t n = blockIdx.x; n < n_total; n += gridDim.x)
+        const auto tx = threadIdx.x;
+        const auto ty = threadIdx.y;
+        const auto x = blockIdx.x * block_x + tx;
+        const auto y = blockIdx.y * block_y + ty;
+
+        const auto active = (x < extent_0) && (y < extent_1);
+        if (active)
         {
-            const std::uint32_t bx = (n % n_0);
-            const std::uint32_t by = (n / n_0);
-
-            lattice[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x] ^=
-                (cluster[(by * n_sub_1 + threadIdx.y) * extent_0 + bx * n_sub_0 + threadIdx.x] & 0x1);
+            lattice[y * extent_0 + x] ^= (cluster[y * extent_0 + x] & 0x1);
         }
     }
 
@@ -648,45 +461,22 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::FlipClusters(Context& context, Lattice<2>& lattice)
     {
-        return;
+        // Configure kernel launch.
+        const auto& extent = lattice.Extent();
+
+        // This kernel will be mostly latency and memory bandwidth bound: we need many threads per block.
+        const auto& tile_size = std::array<std::uint32_t, 2>{64, 8};
+        const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
+        const auto block = dim3{tile_size[0], tile_size[1], 1};
 
         HipContext& gpu = static_cast<HipContext&>(context);
-        const std::uint32_t num_thread_blocks = gpu.Device().Concurrency();
-        //const std::uint32_t num_thread_blocks = 16;
 
-        //std::cout << "Number of thread blocks: " << num_thread_blocks << std::endl;
-
-        const std::uint32_t extent_0 = cluster.Extent()[0];
-        const std::uint32_t extent_1 = cluster.Extent()[1];
-
-        // Configure kernel launch.
-        const dim3 grid{num_thread_blocks, 1, 1};
-        const dim3 block{static_cast<std::uint32_t>(2 * tile_size[0]), static_cast<std::uint32_t>(tile_size[1]), 1};
-        
         SafeCall(hipSetDevice(gpu.Id()));
-        FlipClusters_Kernel<<<grid, block>>>(lattice.RawGpuPointer(),
-            extent_0, extent_1, 2 * tile_size[0], tile_size[1],
+
+        FlipClusters_Kernel<<<grid, block>>>(lattice.RawGpuPointer(), extent[0], extent[1],
             gpu_cluster.get());
 
         gpu.Synchronize();
-        
-        /*
-        auto& thread_group = static_cast<ThreadContext&>(context);
-        const std::int32_t threads_id = thread_group.ThreadId();
-        const std::int32_t num_threads = thread_group.NumThreads();
-
-        const std::size_t num_sites = lattice.NumSites();
-        const std::size_t chunk_size = (num_sites + num_threads - 1) / num_threads;
-        const std::size_t start = threads_id * chunk_size;
-        const std::size_t end = std::min(start + chunk_size, num_sites);
-
-        const auto* c_ptr = cluster.RawPointer();
-        auto* ptr = lattice.RawPointer();
-
-        #pragma omp simd
-        for (std::size_t i = start; i < end; ++i)
-            ptr[i] ^= (c_ptr[i] & 0x1);
-        */
     }
 
     // Explicit template instantiation.
