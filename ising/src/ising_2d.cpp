@@ -125,6 +125,7 @@ int main(int argc, char **argv)
 
     // Measurement.
     auto energy = double{0.0};
+    auto energy_squared = double {0.0};
     auto magnetization = double{0.0};
     const auto starttime = std::chrono::high_resolution_clock::now();
     {
@@ -138,22 +139,27 @@ int main(int argc, char **argv)
                     return lattice.GetEnergyAndMagnetization(target);
                 });
 
+            // These values are 'per-site' measurements.
             energy += e;
-            magnetization += m;
+            energy_squared += e * e;
+            magnetization += std::abs(m);
         }
     }
     const auto endtime = std::chrono::high_resolution_clock::now();
     const auto elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-6;
 
-    // Output the update time per site ..
-    std::cout << "Update time per site: ";
-    std::cout << elapsed_time_s * 1.0e9 / (static_cast<std::int64_t>(n_sweeps) * n_0 * n_1) << " ns" << std::endl;
+    // Output the update time per site (spin) ..
+    std::cout << "Update time per spin: ";
+    std::cout << elapsed_time_s * 1.0E9 / (static_cast<std::int64_t>(n_sweeps) * n_0 * n_1) << " ns" << std::endl;
 
     // .. and mean internal energy and magnetization, both per site.
-    energy /= (n_sweeps / N_Sep);
-    std::cout << "Internal energy per site: " << energy << std::endl;
-    magnetization /= (n_sweeps / N_Sep);
-    std::cout << "Absolute magnetization per site: " << magnetization << std::endl;
+    const auto samples = n_sweeps / N_Sep;
+    const auto heat_capacity = ((energy_squared / samples) - (energy / samples) * (energy / samples)) *
+        lattice.NumSites() / (temperature * temperature);
+
+    std::cout << "Internal energy per spin: " << energy / samples << std::endl;
+    std::cout << "Heat capacity per spin: " << heat_capacity << std::endl;
+    std::cout << "Absolute Magnetization per spin: " << magnetization / samples << std::endl;
 
     return 0;
 }

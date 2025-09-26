@@ -17,7 +17,7 @@ See above build section:
 ```
 $> cmake --build . --target TestRNG
 $> ./bin/TestRNG -h
-..
+Usage: ./build/bin/TestRNG [options]
 Options:
   --help, -h      Show this help message
   --rng=<name>    Set RNG type (default: lcg32)
@@ -58,20 +58,41 @@ Options:
   --algorithm        Set algorithm (default: swendsen_wang)
   --rng=<name>       Set RNG type (default: lcg32)
   --target=<name>    Set target device (default: cpu)
+      Supported target devices: cpu, amd_gpu
 ```
-You can adjust the number of lattice update in the `src/ising_2d.cpp` file (see the head of that file).
 
 ### Run
 ```
-$> export NUM_THREADS=16
-$> ./bin/Ising2D --extent=128x128 --num_sweeps=200000
+$> export NUM_THREADS=32
+$> ./bin/Ising2D --extent=128x128 --target=cpu --num_sweeps=100000
 ```
 
-### Output (sample)
-Example output with 16 threads:
+### Output (samples)
+Example output on CPU with 32 threads:
 ```
-Update time per site (lattice = 128 x 128): 5.30459 ns
-Internal energy per site: -1.41949
-Absolute magnetization per site: -0.332195
+Target name: CPU
+WARMUP: 1000 sweeps
+MEASUREMENT: 100000 sweeps
+Lattice: 128 x 128 (tile size: 16 x 8)
+CPU: setting managed stack memory to 1088 bytes
+Update time per spin: 3.32034 ns
+Internal energy per spin: -1.41921
+Heat capacity per spin: 2.54411
+Absolute Magnetization per spin: 0.550833
 ```
-*NOTE*: this is a Monte Carlo simulation. Changing thread counts and/or number of lattice updates can result in different simulation outputs. However, for the same configuration, the output should be reproducibly the same. Testing for "correctness" can be also done by comparing against exact calculations (see `ising/verification/info.pdf`). For the critical 2-dimensional Ising model with 128 x 128 lattice, for instance, the negative internal energy per spin is `-1.419076272084983`. The value above (`-1.41949`) is a Monte Carlo approximation of this. Running the simulation for longer times should give better results.
+
+Example output on GPU:
+```
+Target name: AMD GPU
+WARMUP: 1000 sweeps
+MEASUREMENT: 10000 sweeps
+Initializing GPU spins .. Done.
+Lattice: 1024 x 1024 (tile size: 8 x 8)
+Initializing GPU RNG state .. Done.
+Initializing GPU cluster .. Done.
+Update time per spin: 0.355505 ns
+Internal energy per spin: -1.41482
+Heat capacity per spin: 3.55027
+Absolute Magnetization per spin: 0.42587
+```
+*NOTE*: this is a Monte Carlo simulation. Changing thread counts and/or number of lattice updates can result in different simulation results (outputs). However, for the same configuration, the output should be reproducible. Testing for "correctness" can be also done by comparing against exact calculations (see `ising/verification/info.pdf`). For the critical 2-dimensional Ising model with 128 x 128 lattice, for instance, the internal energy per spin is `-1.419076272084983`. The value above (`-1.41949`) is a Monte Carlo approximation of this. Running the simulation for longer should give better results.
