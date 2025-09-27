@@ -11,12 +11,13 @@
 #define XXX_NAMESPACE cp
 #endif
 
+// Dynamic shared memory for GPU kernels.
+extern __shared__ std::byte shared_memory[];
+
 namespace XXX_NAMESPACE
 {
     using GpuSpin = std::uint16_t;
     using GpuLabelType = std::uint16_t;
-
-    constexpr auto WavefrontSize = AMD_GPU::WavefrontSize();
 
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::InitializeGpuRngState()
@@ -51,47 +52,27 @@ namespace XXX_NAMESPACE
         }
     }
 
-    template <std::uint32_t N, typename RngState>
-    __device__
-    auto GetRandomNumbers(RngState* rng_state, const std::uint32_t rng_state_shift, const bool shuffle_state = false)
+    template <std::int32_t N>
+    __host__ __device__
+    std::int32_t Ceil(const std::int32_t value)
     {
-        using ReturnType = std::conditional_t<
-            N == 4, float4, std::conditional_t<
-            N == 2, float2, void>>;
+        return ((value + N - 1) / N) * N;
+    }
 
-        __shared__ std::byte shm_state[sizeof(RngState)];
+    template <typename RngState>
+    __device__
+    RngState* LoadRngState(const RngState* rng_state, const std::uint32_t rng_id)
+    {
+        RngState* shared_rng_state = reinterpret_cast<RngState*>(shared_memory);
+        shared_rng_state->Load(rng_state[rng_id]);
+        return shared_rng_state;
+    }
 
-        auto* state = reinterpret_cast<RngState*>(&shm_state[0]);
-        const auto rng_id = (blockIdx.y * gridDim.x + blockIdx.x + rng_state_shift) % (gridDim.x * gridDim.y) ;
-        state->Load(rng_state[rng_id]);
-
-        const auto id = threadIdx.y * blockDim.x + threadIdx.x;
-        auto value = ReturnType{};
-        if constexpr (N == 4)
-        {
-            state->Update(); value.x = 2.3283064370807974E-10F * state->Get(id);
-            state->Update(); value.y = 2.3283064370807974E-10F * state->Get(id);
-            state->Update(); value.z = 2.3283064370807974E-10F * state->Get(id);
-            state->Update(); value.w = 2.3283064370807974E-10F * state->Get(id);
-        }
-        else if constexpr (N == 2)
-        {
-            state->Update(); value.x = 2.3283064370807974E-10F * state->Get(id);
-            state->Update(); value.y = 2.3283064370807974E-10F * state->Get(id);
-        }
-        else
-        {
-            static_assert(false, "Not implemented.");
-        }
-
-#if defined RANDOM_SHUFFLE_STATE
-        if (shuffle_state && (rng_state_shift % RngState::GetShuffleDistance()) == 0)
-            state->Shuffle();
-#endif
-
-        state->Unload(rng_state[rng_id]);
-
-        return value;
+    template <typename RngState>
+    __device__
+    void UnloadRngState(const RngState* shared_rng_state, RngState* rng_state, const std::uint32_t rng_id)
+    {
+        shared_rng_state->Unload(rng_state[rng_id]);
     }
 
     template <typename Spin, typename LabelType, typename RngState>
@@ -99,11 +80,31 @@ namespace XXX_NAMESPACE
     void AssignLabels_Kernel(const Spin* lattice, const std::uint32_t extent_0, const std::uint32_t extent_1,
         LabelType* cluster, RngState* rng_state, const std::uint32_t rng_state_shift, const float p_add)
     {
-        __shared__ GpuSpin sub_lattice[2 * WavefrontSize];
-        __shared__ GpuLabelType sub_cluster[2 * WavefrontSize];
+        const auto rng_id = (blockIdx.y * gridDim.x + blockIdx.x + rng_state_shift) % (gridDim.x * gridDim.y);
+        auto* state = LoadRngState(rng_state, rng_id);
+
+        auto r = float4{};
+        state->Update();
+        r.x = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+        state->Update();
+        r.y = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+        state->Update();
+        r.z = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+        state->Update();
+        r.w = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+
+        #if defined RANDOM_SHUFFLE_STATE
+        if ((rng_state_shift % RngState::GetShuffleDistance()) == 0)
+            state->Shuffle();
+        #endif
+
+        UnloadRngState(state, rng_state, rng_id);
 
         const auto block_x = 2 * blockDim.x;
         const auto block_y = blockDim.y;
+
+        auto* sub_lattice = reinterpret_cast<Spin*>(shared_memory);
+        auto* sub_cluster = reinterpret_cast<GpuLabelType*>(shared_memory + Ceil<64>(block_x * block_y * sizeof(Spin)));
 
         const auto tile_x = ((blockIdx.x + 1) == gridDim.x ? extent_0 - blockIdx.x * block_x : block_x);
         const auto tile_y = ((blockIdx.y + 1) == gridDim.y ? extent_1 - blockIdx.y * block_y : block_y);
@@ -132,8 +133,6 @@ namespace XXX_NAMESPACE
             sub_cluster[ty * block_x + tx] = 0;
             sub_cluster[ty * block_x + tx + 1] = 0;
         }
-
-        const auto& r = GetRandomNumbers<4>(rng_state, rng_state_shift, true /* shuffle_state */);
 
         // Connect 1-direction.
         if (active &&
@@ -254,16 +253,21 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::AssignLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
+        const auto& extent = cluster.Extent();
+        HipContext& gpu = static_cast<HipContext&>(context);
+
         // Configure kernel launch.
-        const auto& extent = lattice.Extent();
         const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
         const auto block = dim3{tile_size[0] / 2, tile_size[1], 1};
 
-        HipContext& gpu = static_cast<HipContext&>(context);
+        const auto shared_mem_rng_state_bytes = sizeof(RngState);
+        const auto shared_mem_lattice_bytes = Ceil<64>(tile_size[0] * tile_size[1] * sizeof(Lattice<2>::Spin));
+        const auto shared_mem_cluster_bytes = tile_size[0] * tile_size[1] * sizeof(GpuLabelType);
+        const auto shared_mem_bytes = std::max(shared_mem_rng_state_bytes, shared_mem_lattice_bytes + shared_mem_cluster_bytes);
 
         SafeCall(hipSetDevice(gpu.Id()));
 
-        AssignLabels_Kernel<<<grid, block>>>(lattice.RawGpuPointer(), extent[0], extent[1],
+        AssignLabels_Kernel<<<grid, block, shared_mem_bytes>>>(lattice.RawGpuPointer(), extent[0], extent[1],
             gpu_cluster.get(), gpu_rng_state.get(), 100 * drand48(), p_add);
 
         gpu.Synchronize();
@@ -279,10 +283,19 @@ namespace XXX_NAMESPACE
         const std::uint32_t block_x, const std::uint32_t block_y,
         LabelType* cluster, RngState* rng_state, const std::uint32_t rng_state_shift, const float p_add)
     {
+        const auto rng_id = (blockIdx.y * gridDim.x + blockIdx.x + rng_state_shift) % (gridDim.x * gridDim.y);
+        auto* state = LoadRngState(rng_state, rng_id);
+
+        auto r = float2{};
+        state->Update();
+        r.x = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+        state->Update();
+        r.y = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
+
+        UnloadRngState(state, rng_state, rng_id);
+
         const auto tile_x = ((blockIdx.x + 1) == gridDim.x ? extent_0 - blockIdx.x * block_x : block_x);
         const auto tile_y = ((blockIdx.y + 1) == gridDim.y ? extent_1 - blockIdx.y * block_y : block_y);
-
-        const auto& r = GetRandomNumbers<2>(rng_state, rng_state_shift);
 
         // 1-direction.
         if (threadIdx.x < tile_y)
@@ -318,16 +331,17 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::MergeLabels(Context& context, Lattice<2>& lattice, const float p_add)
     {
+        const auto& extent = cluster.Extent();
+        HipContext& gpu = static_cast<HipContext&>(context);
+
         // Configure kernel launch.
-        const auto& extent = lattice.Extent();
         const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
         const auto block = dim3{std::min(WavefrontSize, std::max(tile_size[0], tile_size[1])), 1, 1};
-        
-        HipContext& gpu = static_cast<HipContext&>(context);
+        const auto shared_mem_bytes = sizeof(RngState);
 
         SafeCall(hipSetDevice(gpu.Id()));
 
-        MergeLabels_Kernel<<<grid, block>>>(lattice.RawGpuPointer(), extent[0], extent[1],
+        MergeLabels_Kernel<<<grid, block, shared_mem_bytes>>>(lattice.RawGpuPointer(), extent[0], extent[1],
             tile_size[0], tile_size[1],
             gpu_cluster.get(), gpu_rng_state.get(), 100 * drand48(), p_add);
 
@@ -416,15 +430,14 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::ResolveLabels(Context& context)
     {
-        // Configure kernel launch.
         const auto& extent = cluster.Extent();
+        HipContext& gpu = static_cast<HipContext&>(context);
 
-        // This kernel will be mostly latency and memory bandwidth bound: we need many threads per block.
+        // Configure kernel launch: this kernel will be mostly latency and memory bandwidth bound
+        // -> we need many threads per block.
         const auto& tile_size = std::array<std::uint32_t, 2>{64, 8};
         const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
         const auto block = dim3{tile_size[0], tile_size[1], 1};
-
-        HipContext& gpu = static_cast<HipContext&>(context);
 
         SafeCall(hipSetDevice(gpu.Id()));
 
@@ -461,15 +474,14 @@ namespace XXX_NAMESPACE
     template <template <DeviceName> typename RNG, DeviceName Target>
     void SwendsenWang_2D<RNG, Target>::FlipClusters(Context& context, Lattice<2>& lattice)
     {
-        // Configure kernel launch.
-        const auto& extent = lattice.Extent();
+        const auto& extent = cluster.Extent();
+        HipContext& gpu = static_cast<HipContext&>(context);
 
-        // This kernel will be mostly latency and memory bandwidth bound: we need many threads per block.
+        // Configure kernel launch: this kernel will be mostly latency and memory bandwidth bound
+        // -> we need many threads per block.
         const auto& tile_size = std::array<std::uint32_t, 2>{64, 8};
         const auto grid = dim3{(extent[0] + tile_size[0] - 1) / tile_size[0], (extent[1] + tile_size[1] - 1) / tile_size[1], 1};
         const auto block = dim3{tile_size[0], tile_size[1], 1};
-
-        HipContext& gpu = static_cast<HipContext&>(context);
 
         SafeCall(hipSetDevice(gpu.Id()));
 
