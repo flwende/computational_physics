@@ -130,12 +130,12 @@ namespace XXX_NAMESPACE
                     {
                         if (tmp[ii])
                         {
-                            const std::uint32_t a = c[jj][ii];
-                            const std::uint32_t b = c[jj][ii + 1];
+                            const auto a = c[jj][ii];
+                            const auto b = c[jj][ii + 1];
                             if (a != b)
                             {
                                 // Replace both labels by their minimum.
-                                const std::uint32_t ab = std::min(a, b);
+                                const auto ab = std::min(a, b);
                                 c[jj][ii] = ab;
                                 c[jj][ii + 1] = ab;
                                 label_changes = true;

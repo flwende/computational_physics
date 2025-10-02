@@ -96,8 +96,8 @@ namespace XXX_NAMESPACE
             void FlipClusters(Context& context, Lattice<2>& lattice);
 
 #if defined __HIPCC__
-            void InitializeGpuCluster(const LabelType num_sites);
             void InitializeGpuRngState();
+            void InitializeGpuCluster(const LabelType num_sites);
 #endif
     };
 }
