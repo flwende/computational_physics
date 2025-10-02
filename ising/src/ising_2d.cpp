@@ -51,15 +51,15 @@ int main(int argc, char **argv)
         std::cout << "Usage: " << argv[0] << " [options]" << std::endl
                   << "Options:" << std::endl
                   << "  --help, -h         Show this help message" << std::endl
+                  << "  --algorithm        Set algorithm (default: swendsen_wang)" << std::endl
                   << "  --extent=N0xN1     Set lattice dimensions" << std::endl
                   << "  --num_sweeps       Set number of MC sweeps (default: 100000)" << std::endl
-                  << "  --temperature      Set temperature (default: 2.2691853)" << std::endl
-                  << "  --algorithm        Set algorithm (default: swendsen_wang)" << std::endl
                   << "  --rng=<name>       Set RNG type (default: lcg32)" << std::endl
 #if defined __HIPCC__
                   << "  --target=<name>    Set target device (default: cpu)" << std::endl
-                  << "      Supported target devices: cpu, amd_gpu" << std::endl;
+                  << "      Supported target devices: cpu, amd_gpu" << std::endl
 #endif
+                  << "  --temperature      Set temperature (default: 2.2691853)" << std::endl;
         return 0;
     }
 

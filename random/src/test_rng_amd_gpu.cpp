@@ -19,13 +19,13 @@ using namespace XXX_NAMESPACE;
 constexpr auto WavefrontSize = AMD_GPU::WavefrontSize();
 constexpr auto Buffersize = WavefrontSize;
 
+// Dynamic shared memory for GPU kernels.
+extern __shared__ std::byte shared_memory[];
+
 template <typename RngState>
 __device__
 auto* LoadRngState(const RngState* rng_state)
 {
-    // Dynamic shared memory for GPU kernels.
-    extern __shared__ std::byte shared_memory[];
-
     const auto rng_id = std::uint32_t{blockIdx.x * blockDim.y + threadIdx.y};
     auto* shared_rng_state = reinterpret_cast<RngState*>(shared_memory + rng_id * sizeof(RngState));
     shared_rng_state->Load_1d(rng_state[rng_id]);
