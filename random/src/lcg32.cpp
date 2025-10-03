@@ -48,6 +48,7 @@ namespace XXX_NAMESPACE
             state[i] = a[i] * state[i - 1] + c[i];
     }
 
+#if !defined(__USE_SIMD_INTRINSICS__)
     template <std::uint32_t WaveFrontSize>
     void LCG32_State<WaveFrontSize>::Update() noexcept
     {
@@ -82,6 +83,7 @@ namespace XXX_NAMESPACE
         for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
             state[i] = a[i] * state[i] + c[i];
     }
+#endif
 
     std::uint32_t LCG32<DeviceName::CPU>::NextInteger() noexcept
     {

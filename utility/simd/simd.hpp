@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
+#include <immintrin.h>
 
 #if defined(__AVX512F__)
     #define SIMD_WIDTH_NATIVE_64BIT 8
@@ -93,6 +95,27 @@ namespace XXX_NAMESPACE
 
         #undef MACRO
     }
+
+    template <typename T>
+    concept SimdVector_128Bit = requires
+    {
+        requires std::is_same_v<T, __m128i> || std::is_same_v<T, __m128> || std::is_same_v<T, __m128d>;
+    };
+
+    template <typename T>
+    concept SimdVector_256Bit = requires
+    {
+        requires std::is_same_v<T, __m256i> || std::is_same_v<T, __m256> || std::is_same_v<T, __m256d>;
+    };
+
+    template <typename T>
+    concept SimdVector_512Bit = requires
+    {
+        requires std::is_same_v<T, __m512i> || std::is_same_v<T, __m512> || std::is_same_v<T, __m512d>;
+    };
+
+    template <typename T>
+    concept SimdVector = SimdVector_128Bit<T> || SimdVector_256Bit<T> || SimdVector_512Bit<T>;
 }
 
 #undef SIMD_WIDTH_NATIVE_64BIT
@@ -100,3 +123,10 @@ namespace XXX_NAMESPACE
 #undef SIMD_WIDTH_NATIVE_16BIT
 #undef SIMD_WIDTH_NATIVE_8BIT
 #undef SIMD_ALIGNMENT
+
+#undef XXX_NAMESPACE
+
+#include "arithmetic/arithmetic.hpp"
+#include "load_store/load_store.hpp"
+#include "logical/logical.hpp"
+#include "rotate/rotate.hpp"
