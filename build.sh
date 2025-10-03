@@ -2,10 +2,10 @@
 
 if [[ "$1" == "clean" ]]; then rm -r ./build; exit 0; fi
 
-export CC=hipcc
-export CXX=hipcc
-#export CC=gcc
-#export CXX=g++
+#export CC=hipcc
+#export CXX=hipcc
+export CC=gcc
+export CXX=g++
 
 if [[ "$CC" == "hipcc" ]]; then
     ## Determine native GPU arch.
