@@ -1,5 +1,9 @@
 #pragma once
 
+#include <array>
+
+#include "set_1.hpp"
+
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
 #endif
@@ -8,22 +12,24 @@ namespace XXX_NAMESPACE
 {
     namespace simd
     {
-        // Store unaligned to address pointed to by 'ptr'.
-        template <typename ElementType>
-        inline void VecStore(ElementType* ptr, const SimdVector auto& vec)
+        // Set vector values.
+        template <typename ElementType, std::size_t N>
+        inline SimdVector auto VecSet(const std::array<ElementType, N>& values)
         {
             constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
+
+            static_assert(N == VecWidth, "Provided and expected number of elements does not match.");
 
             if constexpr (std::is_integral_v<ElementType>)
             {
                 if constexpr (VecBits == 512)
                 {
-                    _mm512_storeu_si512(static_cast<void*>(ptr), vec);
+                    return _mm512_loadu_si512(static_cast<const void*>(values.data()));
                 }
                 else if constexpr (VecBits == 256)
                 {
-                    _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), vec);
+                    return _mm256_loadu_si256(reinterpret_cast<const __m256i*>(values.data()));
                 }
                 else
                 {

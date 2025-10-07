@@ -73,8 +73,10 @@ namespace XXX_NAMESPACE
             void Initialize(Lattice<2>& lattice);
 
             // Connected component labeling (ccl) based on an idea of Coddington and Baillie within tiles.
-            template <std::uint32_t N_0 = 0>
-            void CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<uint32_t, 2>& n_offset, const std::array<uint32_t, 2>& n_sub);
+            void CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<std::uint32_t, 2>& n_offset, const std::array<std::uint32_t, 2>& n_sub);
+
+            template <std::uint32_t N_0>
+            void CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<uint32_t, 2>& n_offset, const std::uint32_t n_1);
 
             // Loop over all tiles of the lattice and apply ccl_selflabeling.
             // Parameter p_add is the probability for adding aligned nearest
@@ -103,5 +105,8 @@ namespace XXX_NAMESPACE
 }
 
 #include "swendsen_wang_selflabeling.hpp"
+#if defined(__USE_SIMD_INTRINSICS__)
+#include "swendsen_wang_selflabeling_simd_intrinsics.hpp"
+#endif
 
 #undef XXX_NAMESPACE

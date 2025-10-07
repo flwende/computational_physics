@@ -8,22 +8,22 @@ namespace XXX_NAMESPACE
 {
     namespace simd
     {
-        // Store unaligned to address pointed to by 'ptr'.
+        // Compare two vectors: Lower Than.
         template <typename ElementType>
-        inline void VecStore(ElementType* ptr, const SimdVector auto& vec)
+        inline SimdMask auto VecCompareLT(const SimdVector auto& vec_a, const SimdVector auto& vec_b)
         {
             constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
 
-            if constexpr (std::is_integral_v<ElementType>)
+            if constexpr (std::is_same_v<ElementType, float>) // float
             {
                 if constexpr (VecBits == 512)
                 {
-                    _mm512_storeu_si512(static_cast<void*>(ptr), vec);
+                    return _mm512_cmp_ps_mask(vec_a, vec_b, _CMP_LT_OS);
                 }
                 else if constexpr (VecBits == 256)
                 {
-                    _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), vec);
+                    return _mm256_castps_si256(_mm256_cmp_ps(vec_a, vec_b, _CMP_LT_OS));
                 }
                 else
                 {

@@ -8,22 +8,26 @@ namespace XXX_NAMESPACE
 {
     namespace simd
     {
-        // Store unaligned to address pointed to by 'ptr'.
+        // Compare two vectors using a mask: Not Equal.
         template <typename ElementType>
-        inline void VecStore(ElementType* ptr, const SimdVector auto& vec)
+        inline SimdMask auto VecCompareNE_Masked(const SimdMask auto& mask, const SimdVector auto& vec_a, const SimdVector auto& vec_b)
         {
+            using MaskType = std::remove_cvref_t<decltype(mask)>;
+
             constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
 
-            if constexpr (std::is_integral_v<ElementType>)
+            if constexpr (std::is_integral_v<ElementType> && sizeof(ElementType) == 4) // std::int32_t, std::uint32_t
             {
                 if constexpr (VecBits == 512)
                 {
-                    _mm512_storeu_si512(static_cast<void*>(ptr), vec);
+                    static_assert(std::is_same_v<MaskType, __mmask16>, "Mask type __mmask16 expected.");
+                    return _mm512_mask_cmp_epi32_mask(mask, vec_a, vec_b, _MM_CMPINT_NE);
                 }
                 else if constexpr (VecBits == 256)
                 {
-                    _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), vec);
+                    static_assert(std::is_same_v<MaskType, __m256i>, "Mask type __m256i expected.");
+                    return _mm256_andnot_si256(_mm256_cmpeq_epi32(vec_a, vec_b), mask);
                 }
                 else
                 {

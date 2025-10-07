@@ -1,8 +1,9 @@
 #pragma once
 
+#include <array>
 #include <algorithm>
 #include <cstdint>
-#include <vector>
+#include <span>
 
 #include "simd/simd.hpp"
 
@@ -24,16 +25,26 @@ namespace XXX_NAMESPACE
 
             virtual float NextReal() noexcept = 0;
 
-            virtual void NextInteger(std::vector<std::uint32_t>& numbers) noexcept
+            virtual void NextInteger(std::span<std::uint32_t>&& numbers) noexcept
             {
                 std::for_each(std::begin(numbers), std::end(numbers),
                     [this] (auto& item) { item = NextInteger(); });
             }
 
-            virtual void NextReal(std::vector<float>& numbers) noexcept
+            virtual void NextReal(std::span<float>&& numbers) noexcept
             {
                 std::for_each(std::begin(numbers), std::end(numbers),
                     [this] (auto& item) { item = NextReal(); });
+            }
+
+            auto NextRealArray() noexcept
+            {
+                constexpr auto N = simd::Type<float>::Width;
+                auto numbers = std::array<float, N>{};
+
+                NextReal(numbers);
+
+                return numbers;
             }
 	};	
 }

@@ -34,7 +34,7 @@ namespace XXX_NAMESPACE
             static constexpr auto Name() noexcept { return DeviceName::CPU; }
 
             template <typename T>
-            static constexpr auto WavefrontSize() noexcept { return simd::Type<T>::width; }
+            static constexpr auto WavefrontSize() noexcept { return simd::Type<T>::Width; }
 
             template <typename Func, typename ...Args>
             void Execute(Func&& func, Args&&... args)

@@ -58,9 +58,6 @@ namespace XXX_NAMESPACE
             // .. and initialize random number generators (count depends on the lattice extent).
             const auto concurrency = target.Concurrency();
             const auto num_rngs =  (Target == DeviceName::CPU ? concurrency :
-                // GPU case: if tiles have '2 x WavefrontSize' extent, we need one RNG per row
-                // (y-direction). Otherwise, every tile is a warp and needs only 1 RNG.
-                //(tile_size[0] == (2 * WavefrontSize) ? tile_size[1] : 1));
                 ((extent[0] + tile_size[0] - 1) / tile_size[0]) * ((extent[1] + tile_size[1] - 1) / tile_size[1]));
 
             for (std::uint32_t i = 0; i < num_rngs; ++i)

@@ -39,20 +39,20 @@ namespace XXX_NAMESPACE
     namespace simd
     {
         // Memory alignment.
-        static constexpr auto alignment = std::size_t{SIMD_ALIGNMENT};
+        static constexpr auto Alignment = std::size_t{SIMD_ALIGNMENT};
 
         // Data types that support SIMD operations (implementations).
         template <typename T>
         struct Implementation
         {
-            static constexpr auto available = false;
+            static constexpr auto Available = false;
         };
 
         #define MACRO(T)                                            \
         template <>                                                 \
         struct Implementation<T>                                    \
         {                                                           \
-            static constexpr auto available = true;                 \
+            static constexpr auto Available = true;                 \
         };
 
         MACRO(double)
@@ -72,14 +72,14 @@ namespace XXX_NAMESPACE
         template <typename T>
         struct Type
         {
-            static_assert(Implementation<T>::available, "Error: Data type not supported for SIMD.");
+            static_assert(Implementation<T>::Available, "Error: Data type not supported for SIMD.");
         };
 
         #define MACRO(T, WIDTH)                                     \
         template <>                                                 \
         struct Type<T>                                              \
         {                                                           \
-            static constexpr auto width = std::uint32_t{WIDTH};     \
+            static constexpr auto Width = std::uint32_t{WIDTH};     \
         };
 
         MACRO(double, SIMD_WIDTH_NATIVE_64BIT)
@@ -96,6 +96,7 @@ namespace XXX_NAMESPACE
         #undef MACRO
     }
 
+    // SIMD vector concept.
     template <typename T>
     concept SimdVector_128Bit = requires
     {
@@ -116,6 +117,28 @@ namespace XXX_NAMESPACE
 
     template <typename T>
     concept SimdVector = SimdVector_128Bit<T> || SimdVector_256Bit<T> || SimdVector_512Bit<T>;
+
+    // SIMD mask concept.
+    template <typename T>
+    concept SimdMask_128Bit = requires
+    {
+        requires std::is_same_v<T, __m128i>;
+    };
+
+    template <typename T>
+    concept SimdMask_256Bit = requires
+    {
+        requires std::is_same_v<T, __m256i>;
+    };
+
+    template <typename T>
+    concept SimdMask_512Bit = requires
+    {
+        requires std::is_same_v<T, __mmask8> || std::is_same_v<T, __mmask16> || std::is_same_v<T, __mmask32> || std::is_same_v<T, __mmask64>;
+    };
+
+    template <typename T>
+    concept SimdMask = SimdMask_128Bit<T> || SimdMask_256Bit<T> || SimdMask_512Bit<T>;
 }
 
 #undef SIMD_WIDTH_NATIVE_64BIT
@@ -127,6 +150,10 @@ namespace XXX_NAMESPACE
 #undef XXX_NAMESPACE
 
 #include "arithmetic/arithmetic.hpp"
+#include "bits/bits.hpp"
+#include "compare/compare.hpp"
+#include "convert/convert.hpp"
 #include "load_store/load_store.hpp"
-#include "logical/logical.hpp"
-#include "rotate/rotate.hpp"
+#include "mask/mask.hpp"
+#include "permute/permute.hpp"
+#include "set/set.hpp"

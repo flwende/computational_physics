@@ -8,22 +8,24 @@ namespace XXX_NAMESPACE
 {
     namespace simd
     {
-        // Store unaligned to address pointed to by 'ptr'.
+        // Permutation of vector elements.
         template <typename ElementType>
-        inline void VecStore(ElementType* ptr, const SimdVector auto& vec)
+        inline SimdVector auto VecPermuteIdx(const SimdVector auto& vec, const SimdVector auto& idx)
         {
+            using IdxType = std::remove_cvref_t<decltype(idx)>;
+
             constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
 
-            if constexpr (std::is_integral_v<ElementType>)
+            if constexpr (std::is_integral_v<ElementType> && sizeof(ElementType) == 4) // std::int32_t, std::uint32_t
             {
-                if constexpr (VecBits == 512)
+                if constexpr (VecBits == 512 && std::is_same_v<IdxType, __m512i>)
                 {
-                    _mm512_storeu_si512(static_cast<void*>(ptr), vec);
+                    return _mm512_permutexvar_epi32(idx, vec);
                 }
-                else if constexpr (VecBits == 256)
+                else if constexpr (VecBits == 256 && std::is_same_v<IdxType, __m256i>)
                 {
-                    _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), vec);
+                    return _mm256_permutevar8x32_epi32(vec, idx);
                 }
                 else
                 {
@@ -39,3 +41,5 @@ namespace XXX_NAMESPACE
 }
 
 #undef XXX_NAMESPACE
+
+#include "rotate_right.hpp"

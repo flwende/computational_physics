@@ -34,13 +34,16 @@ namespace XXX_NAMESPACE
             const auto i = (n % n_0) * tile_size[0];
             const auto n_offset = std::array<uint32_t, 2>{i, j};
             const auto n_sub = std::array<uint32_t, 2>{std::min(tile_size[0], extent_0 - i), std::min(tile_size[1], extent_1 - j)};
+
+#if defined(__USE_SIMD_INTRINSICS__)
             if (n_sub[0] == WavefrontSize)
             {
                 // We can call a version of that method with the extent in 0-direction being
                 // a compile time constant (hopefully allowing the compiler to do better optimizations)
-                CCL_SelfLabeling<WavefrontSize>(context, lattice, p_add, n_offset, n_sub);
+                CCL_SelfLabeling<WavefrontSize>(context, lattice, p_add, n_offset, n_sub[1]);
             }
             else
+#endif
             {
                 CCL_SelfLabeling(context, lattice, p_add, n_offset, n_sub);
             }

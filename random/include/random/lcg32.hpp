@@ -80,14 +80,14 @@ namespace XXX_NAMESPACE
 
             float NextReal() noexcept override;
 
-            void NextInteger(std::vector<std::uint32_t>& numbers) noexcept override
+            void NextInteger(std::span<std::uint32_t>&& numbers) noexcept override
             {
-                NextInteger(numbers.data(), numbers.size());
+                NextInteger(&numbers[0], numbers.size());
             }
 
-            void NextReal(std::vector<float>& numbers) noexcept override
+            void NextReal(std::span<float>&& numbers) noexcept override
             {
-                NextReal(numbers.data(), numbers.size());
+                NextReal(&numbers[0], numbers.size());
             }
 
         protected:

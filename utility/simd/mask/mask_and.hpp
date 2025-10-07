@@ -8,10 +8,15 @@ namespace XXX_NAMESPACE
 {
     namespace simd
     {
-        // Multiply two vectors: store lower 32 bits of 64-bit intermediate result.
+        // Apply bit-wise AND to two masks.
         template <typename ElementType>
-        inline SimdVector auto VecMulLo(const SimdVector auto& vec_a, const SimdVector auto& vec_b)
+        inline SimdMask auto MaskAnd(const SimdMask auto& mask_a, const SimdMask auto& mask_b)
         {
+            using MaskType_a = std::remove_cvref_t<decltype(mask_a)>;
+            using MaskType_b = std::remove_cvref_t<decltype(mask_b)>;
+
+            static_assert(std::is_same_v<MaskType_a, MaskType_b>, "Different mask types are not allowed.");
+
             constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
 
@@ -19,11 +24,13 @@ namespace XXX_NAMESPACE
             {
                 if constexpr (VecBits == 512)
                 {
-                    return _mm512_mullo_epi32(vec_a, vec_b);
+                    static_assert(std::is_same_v<MaskType_a, __mmask16>, "Mask type __mmask16 expected.");
+                    return _kand_mask16(mask_a, mask_b);
                 }
                 else if constexpr (VecBits == 256)
                 {
-                    return _mm256_mullo_epi32(vec_a, vec_b);
+                    static_assert(std::is_same_v<MaskType_a, __m256i>, "Mask type __m256i expected.");
+                    return _mm256_and_si256(mask_a, mask_b);
                 }
                 else
                 {

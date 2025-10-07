@@ -8,22 +8,22 @@ namespace XXX_NAMESPACE
 {
     namespace simd
     {
-        // Store unaligned to address pointed to by 'ptr'.
+        // Compare two vectors: Equality.
         template <typename ElementType>
-        inline void VecStore(ElementType* ptr, const SimdVector auto& vec)
+        inline SimdMask auto VecCompareEQ(const SimdVector auto& vec_a, const SimdVector auto& vec_b)
         {
             constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
 
-            if constexpr (std::is_integral_v<ElementType>)
+            if constexpr (std::is_integral_v<ElementType> && sizeof(ElementType) == 4) // std::int32_t, std::uint32_t
             {
                 if constexpr (VecBits == 512)
                 {
-                    _mm512_storeu_si512(static_cast<void*>(ptr), vec);
+                    return _mm512_cmp_epi32_mask(vec_a, vec_b, _MM_CMPINT_EQ);
                 }
                 else if constexpr (VecBits == 256)
                 {
-                    _mm256_storeu_si256(reinterpret_cast<__m256i*>(ptr), vec);
+                    return _mm256_cmpeq_epi32(vec_a, vec_b);
                 }
                 else
                 {

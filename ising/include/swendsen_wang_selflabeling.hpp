@@ -39,8 +39,7 @@ namespace XXX_NAMESPACE
     // Label L is mapped to L' = ((n_offset[1] + b) * n[0] + n_offset[0] + a, where
     // a = (L % n_0) and b = (L / n_0) and n_0 is either N_0 or n_sub[0].
     template <template <DeviceName> typename RNG, DeviceName Target>
-    template <std::uint32_t N_0>
-    void SwendsenWang_2D<RNG, Target>::CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<uint32_t, 2>& n_offset, const std::array<uint32_t, 2>& n_sub)
+    void SwendsenWang_2D<RNG, Target>::CCL_SelfLabeling(Context& context, Lattice<2>& lattice, const float p_add, const std::array<std::uint32_t, 2>& n_offset, const std::array<std::uint32_t, 2>& n_sub)
     {
         auto& thread_group = static_cast<ThreadContext&>(context);
         const auto thread_id = thread_group.ThreadId();
@@ -48,7 +47,7 @@ namespace XXX_NAMESPACE
         // Possible compiler optimization: N_0 has default value 0.
         // if the extent of the tile in 0-direction equals tile_size[0] (= multiple of the SIMD width),
         // the compiler can maybe apply some SIMD related optimizations
-        const auto ii_max = (N_0 == 0 ? n_sub[0] : N_0);
+        const auto ii_max = n_sub[0];
         const auto jj_max = n_sub[1];
 
         // Local copy of the tile.

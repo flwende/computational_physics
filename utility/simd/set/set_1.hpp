@@ -8,9 +8,9 @@ namespace XXX_NAMESPACE
 {
     namespace simd
     {
-        // Multiply two vectors: store lower 32 bits of 64-bit intermediate result.
+        // Set vector values.
         template <typename ElementType>
-        inline SimdVector auto VecMulLo(const SimdVector auto& vec_a, const SimdVector auto& vec_b)
+        inline SimdVector auto VecSet1(const ElementType value)
         {
             constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
@@ -19,11 +19,26 @@ namespace XXX_NAMESPACE
             {
                 if constexpr (VecBits == 512)
                 {
-                    return _mm512_mullo_epi32(vec_a, vec_b);
+                    return _mm512_set1_epi32(value);
                 }
                 else if constexpr (VecBits == 256)
                 {
-                    return _mm256_mullo_epi32(vec_a, vec_b);
+                    return _mm256_set1_epi32(value);
+                }
+                else
+                {
+                    static_assert(false, "Not implemented.");
+                }
+            }
+            else if constexpr (std::is_same_v<ElementType, float>) // float
+            {
+                if constexpr (VecBits == 512)
+                {
+                    return _mm512_set1_ps(value);
+                }
+                else if constexpr (VecBits == 256)
+                {
+                    return _mm256_set1_ps(value);
                 }
                 else
                 {

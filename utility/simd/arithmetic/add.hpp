@@ -12,7 +12,7 @@ namespace XXX_NAMESPACE
         template <typename ElementType>
         inline SimdVector auto VecAdd(const SimdVector auto& vec_a, const SimdVector auto& vec_b)
         {
-            constexpr auto VecWidth = simd::Type<ElementType>::width;
+            constexpr auto VecWidth = simd::Type<ElementType>::Width;
             constexpr auto VecBits = VecWidth * 8 * sizeof(ElementType);
 
             if constexpr (std::is_integral_v<ElementType> && sizeof(ElementType) == 4) // std::int32_t, std::uint32_t
