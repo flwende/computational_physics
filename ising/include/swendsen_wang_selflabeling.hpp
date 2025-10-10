@@ -80,25 +80,21 @@ namespace XXX_NAMESPACE
             #pragma omp simd
             for (std::uint32_t ii = 0; ii < ii_max; ++ii)
             {
-                auto l_0 = l[jj][ii];
-                if (l_0 == tmp[ii] && buffer[ii] < p_add)
-                    l_0 |= 0x2;
-                l[jj][ii] = l_0;
+                if (l[jj][ii] == tmp[ii] && buffer[ii] < p_add)
+                    l[jj][ii] |= 0x2;
             }
-        }
 
-        // Step 2: 1-direction -> set bit 2 if connected.
-        for (std::uint32_t jj = 0; jj < (jj_max - 1); ++jj)
-        {
-            rng[thread_id]->NextReal(buffer);
-
-            #pragma omp simd
-            for (std::uint32_t ii = 0; ii < ii_max; ++ii)
+            // Step 2: 1-direction -> set bit 2 if connected.
+            if (jj < (jj_max - 1))
             {
-                auto l_0 = l[jj][ii];
-                if ((l_0 & 0x1) == (l[jj + 1][ii] & 0x1) && buffer[ii] < p_add)
-                    l_0 |= 0x4;
-                l[jj][ii] = l_0;
+                rng[thread_id]->NextReal(buffer);
+
+                #pragma omp simd
+                for (std::uint32_t ii = 0; ii < ii_max; ++ii)
+                {
+                    if ((l[jj][ii] & 0x1) == (l[jj + 1][ii] & 0x1) && buffer[ii] < p_add)
+                        l[jj][ii] |= 0x4;
+                }
             }
         }
 
