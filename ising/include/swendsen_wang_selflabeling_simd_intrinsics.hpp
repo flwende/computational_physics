@@ -60,6 +60,7 @@ namespace XXX_NAMESPACE
         VariableLengthArray<std::uint32_t, 2> c(thread_group.StackMemory(), {N_0, n_1});
 
         // Step 1 and 2.
+        const auto ExcludeLastSpinInRow = MaskFromInteger<std::uint32_t>(N_0 == 16 ? 0x7FFF : (N_0 == 8 ? 0x7F : 0x7));
         auto vec_l_next = VecConvert<std::uint8_t, std::uint32_t>(VecLoad<std::uint8_t, 8 * N_0>(&lattice[n_offset[1] + 0][n_offset[0]]));
         for (std::uint32_t jj = 0; jj < n_1; ++jj)
         {
@@ -68,11 +69,10 @@ namespace XXX_NAMESPACE
 
             // Step 2: 0-direction -> set bit 1 if connected.
             const auto vec_random = VecLoad<float>(rng[thread_id]->NextRealArray());
-            constexpr auto Filter = (N_0 == 16 ? 0x7FFF : (N_0 == 8 ? 0x7F : 0x7));
             const auto mask_0 = MaskAnd<std::uint32_t>(MaskAnd<std::uint32_t>(
                 VecCompareLT<float>(vec_random, VecSet1<float>(p_add)),
                 VecCompareEQ<std::uint32_t>(vec_l, vec_l_shifted)),
-                MaskFromInteger<std::uint32_t>(Filter)); // Exclude last spin in each row.
+                ExcludeLastSpinInRow);
 
             auto vec_l_encoding = VecOr_Masked<std::uint32_t>(vec_l, mask_0, vec_l, VecSet1<std::uint32_t>(0x2));
 
@@ -100,7 +100,7 @@ namespace XXX_NAMESPACE
         }
 
         // Step 4.
-        bool break_loop = false;
+        auto break_loop = false;
         while (!break_loop)
         {
             break_loop = true;
@@ -116,7 +116,6 @@ namespace XXX_NAMESPACE
                 while (true)
                 {
                     auto vec_b = VecPermuteIdx<std::uint32_t>(vec_a, VecSet(Iota<std::uint32_t, N_0>(1, 15)));
-
                     const auto label_changes = MaskToInteger<std::uint32_t>(VecCompareNE_Masked<std::uint32_t>(mask_0, vec_a, vec_b));
                     if (!label_changes)
                         break;
