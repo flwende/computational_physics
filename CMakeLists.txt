@@ -15,8 +15,11 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		include_directories ("/usr/include/hip")
 	endif()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 	add_compile_options(/W4)
+endif()
+
+if (WIN32)
+	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 
 add_compile_definitions(__USE_SIMD_INTRINSICS__)
