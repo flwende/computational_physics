@@ -12,7 +12,7 @@ if [[ "$CC" == "hipcc" ]]; then
     touch empty.cpp
     arch=$(hipcc -E -dM empty.cpp | grep GFX | cut -d ' ' -f 2)
     rm -f empty.cpp
-    export GPU_ARCH=$arch
+    export AMD_GPU_ARCH=$arch
     echo "Detected AMD GPU: $arch"
 fi
 

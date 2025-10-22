@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdlib>
 #include <mutex>
 
 #include "random/lcg32.hpp"
@@ -32,15 +33,15 @@ namespace XXX_NAMESPACE
             auto lock = std::lock_guard<std::mutex>{m_init};
 
             // Random assignment of Parameters to concurrent lcgs.
-            srand48(seed);
+            std::srand(seed);
             for (std::uint32_t i = 0; i < WaveFrontSize; ++i)
             {
-                const auto select = static_cast<std::uint32_t>(1000.0 * drand48()) % NumParameters;
+                const auto select = std::rand() % NumParameters;
                 a[i] = Parameters[select][0];
                 c[i] = Parameters[select][1];
             }
 
-            state[0] = a[0] * (static_cast<std::uint32_t>(0xEFFFFFFFU * drand48()) + 1) + c[0];
+            state[0] = a[0] * std::rand() + c[0];
         }
 
         // The n-th lcg is initialized using the state of the (n - 1)-th lcg.

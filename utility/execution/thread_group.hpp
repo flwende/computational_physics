@@ -5,7 +5,13 @@
 #include <functional>
 #include <thread>
 #include <vector>
+
+#if defined (_WIN32)
+#define NOMINMAX   /* Do not define min and max in windows.h */
+#include <windows.h>
+#else
 #include <sched.h>
+#endif
 
 #include "thread_context.hpp"
 #include "synchronization/barrier.hpp"
@@ -130,10 +136,15 @@ namespace XXX_NAMESPACE
 
             void PinThread(const std::uint32_t thread_id)
             {
-                cpu_set_t my_set;
+#if defined (_WIN32)
+                const auto my_set = static_cast<DWORD_PTR>(1ULL << thread_id);
+                SetThreadAffinityMask(GetCurrentThread(), my_set);
+#else
+                auto my_set = cpu_set_t{};
                 CPU_ZERO(&my_set);
                 CPU_SET(thread_id, &my_set);
                 sched_setaffinity(0, sizeof(cpu_set_t), &my_set);
+#endif
             }
     };
 }

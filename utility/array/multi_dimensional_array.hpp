@@ -57,7 +57,7 @@ namespace XXX_NAMESPACE
         public:
             explicit NonOwningMultiDimensionalArray(ManagedMemory& memory, const std::array<std::uint32_t, Dimension>& extent)
                 :
-                NonOwningMultiDimensionalArray(std::move(memory.Allocate<T>(Accumulate<std::multiplies<std::size_t>>(extent, 1UL))), extent)
+                NonOwningMultiDimensionalArray(std::move(memory.Allocate<T>(Accumulate<std::multiplies<std::size_t>>(extent, std::size_t{1}))), extent)
             {}
 
         protected:
@@ -81,7 +81,7 @@ namespace XXX_NAMESPACE
 
             explicit MultiDimensionalArray(const std::array<std::uint32_t, Dimension>& extent)
                 :
-                data(std::make_unique<T[]>(Accumulate<std::multiplies<std::size_t>>(extent, 1UL))),
+                data(std::make_unique<T[]>(Accumulate<std::multiplies<std::size_t>>(extent, std::size_t{1}))),
                 span(data.get(), extent)
             {}
             

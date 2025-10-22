@@ -1,4 +1,7 @@
-include_directories(include)
+include_directories(include ${CMAKE_SOURCE_DIR}/random/include)
 
 add_subdirectory(src)
-add_subdirectory(verification)
+
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+	add_subdirectory(verification)
+endif()

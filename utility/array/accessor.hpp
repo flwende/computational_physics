@@ -49,7 +49,7 @@ namespace XXX_NAMESPACE
                 :
                 ptr(ptr),
                 extent(extent),
-                hyper_plane_size(Accumulate<std::multiplies<std::size_t>>(extent | std::ranges::views::take(Dimension - 1), 1UL))
+                hyper_plane_size(Accumulate<std::multiplies<std::size_t>>(extent | std::ranges::views::take(Dimension - 1), std::size_t{1}))
             {
                 assert(ptr != nullptr && "Accessor expects a non-null pointer.");
             }

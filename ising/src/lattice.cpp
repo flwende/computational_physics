@@ -16,14 +16,14 @@ namespace XXX_NAMESPACE
     Lattice<Dimension>::Lattice(const std::array<std::uint32_t, Dimension>& extent)
         :
         extent(extent),
-        num_sites(Accumulate<std::multiplies<std::size_t>>(extent, 1UL)),
+        num_sites(Accumulate<std::multiplies<std::size_t>>(extent, std::size_t{1})),
         spins(extent)
     {
         auto* ptr = RawPointer();
 
-        srand48(1);
+        std::srand(1);
         for (std::size_t i = 0; i < num_sites; ++i)
-            ptr[i] = drand48() < 0.5 ? 0 : 1;
+            ptr[i] = std::rand() % 2;
     }
 
     template <>

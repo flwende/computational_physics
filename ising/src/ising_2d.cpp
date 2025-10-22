@@ -117,8 +117,8 @@ int main(int argc, char **argv)
                 throw std::runtime_error("Unknown RNG name.");
         };
 
-    std::cout << "WARMUP: " << N_Warmup << " sweeps" << std::endl;
-    std::cout << "MEASUREMENT: " << n_sweeps << " sweeps" << std::endl;
+    std::cout << "Warmup sweeps: " << N_Warmup << " sweeps" << std::endl;
+    std::cout << "Measurement sweeps: " << n_sweeps << " sweeps" << std::endl;
 
     // Thermalization.
     DispatchCall(target_name, *target, kernel, N_Warmup);
