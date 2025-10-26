@@ -33,7 +33,7 @@ namespace XXX_NAMESPACE
             Barrier new_task {};
             Barrier task_done {};
             Barrier barrier;
-            std::vector<std::thread> threads;
+            std::vector<std::jthread> threads;
             std::function<void(ThreadContext&)> kernel;
 
         public:
@@ -61,9 +61,6 @@ namespace XXX_NAMESPACE
                 // Signal to threads that the threads group is going down.
                 active.store(false, std::memory_order_release);
                 new_task.Signal();
-
-                for (auto& thread : threads)
-                    thread.join();
             }
 
             auto Size() const noexcept { return num_threads; }

@@ -27,12 +27,12 @@ int main(int argc, char** argv)
     barrier.Reset(num_threads);
 
     auto kernel = [] (const std::uint32_t num_iterations)
-        {            
+        {
             for (std::uint32_t i = 0; i < num_iterations; ++i)
                 barrier.Wait();
         };
 
-    std::vector<std::thread> threads;
+    std::vector<std::jthread> threads;
     threads.reserve(num_threads - 1);
     for (std::uint32_t i = 0; i < (num_threads - 1); ++i)
         threads.emplace_back(kernel, num_iterations + 1);
@@ -46,9 +46,6 @@ int main(int argc, char** argv)
     // Reporting.
     const auto elapsed_time_ms = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-3;
     std::cout << "Time per iteration: " << elapsed_time_ms / num_iterations << "ms" << std::endl;
-
-    for (auto& thread : threads)
-        thread.join();
 
     return 0;
 }
