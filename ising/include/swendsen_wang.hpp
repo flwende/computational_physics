@@ -41,7 +41,7 @@ namespace XXX_NAMESPACE
             std::vector<RngState> rng_state;
             std::vector<std::shared_ptr<RandomNumberGenerator>> rng;
 
-#if defined __HIPCC__
+#if defined(__HIPCC__)
             GpuPointer<LabelType> gpu_cluster {};
             GpuPointer<RngState> gpu_rng_state {};
 #endif
@@ -97,7 +97,7 @@ namespace XXX_NAMESPACE
             // Flip clusters.
             void FlipClusters(Context& context, Lattice<2>& lattice);
 
-#if defined __HIPCC__
+#if defined(__HIPCC__)
             void InitializeGpuRngState();
             void InitializeGpuCluster(const LabelType num_sites);
 #endif
@@ -105,7 +105,7 @@ namespace XXX_NAMESPACE
 }
 
 #include "swendsen_wang_selflabeling.hpp"
-#if defined(__USE_SIMD_INTRINSICS__)
+#if defined(USE_SIMD_INTRINSICS)
 #include "swendsen_wang_selflabeling_simd_intrinsics.hpp"
 #endif
 

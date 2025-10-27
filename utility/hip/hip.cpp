@@ -1,4 +1,4 @@
-#if defined __HIPCC__
+#if defined(__HIPCC__)
 
 #include <cstdint>
 #include <iostream>

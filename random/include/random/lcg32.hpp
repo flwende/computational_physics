@@ -96,7 +96,7 @@ namespace XXX_NAMESPACE
             virtual void NextReal(float* ptr, const std::size_t n) noexcept;
     };
 
-#if defined __HIPCC__
+#if defined(__HIPCC__)
     template <>
     class alignas(128) LCG32<DeviceName::AMD_GPU> : public RandomNumberGenerator
     {

@@ -22,7 +22,7 @@ if (WIN32)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 
-add_compile_definitions(__USE_SIMD_INTRINSICS__)
+add_compile_definitions(USE_SIMD_INTRINSICS)
 
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 

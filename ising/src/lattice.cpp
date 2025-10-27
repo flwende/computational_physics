@@ -63,10 +63,10 @@ namespace XXX_NAMESPACE
 
         auto awaitable = (async ? cpu.AsyncExecute(kernel) : cpu.Execute(kernel));
 
-        return {energy_magnetization, awaitable};
+        return {std::move(energy_magnetization), awaitable};
     }
 
-#if defined __HIPCC__
+#if defined(__HIPCC__)
     template <>
     template <>
     Future<std::pair<double, double>> Lattice<2>::GetEnergyAndMagnetization<AMD_GPU>(AMD_GPU& gpu, const bool async)

@@ -1,4 +1,4 @@
-#if defined __HIPCC__
+#if defined(__HIPCC__)
 
 #include <algorithm>
 #include <cmath>
@@ -93,7 +93,7 @@ namespace XXX_NAMESPACE
         state->Update();
         r.w = 2.3283064370807974e-10f * state->Get(threadIdx.y * blockDim.x + threadIdx.x);
 
-        #if defined RANDOM_SHUFFLE_STATE
+        #if defined(RANDOM_SHUFFLE_STATE)
         if ((rng_state_shift % RngState::GetShuffleDistance()) == 0)
             state->Shuffle();
         #endif

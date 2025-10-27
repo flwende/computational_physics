@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <optional>
-#include <type_traits>
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -13,7 +12,7 @@ namespace XXX_NAMESPACE
     class Awaitable
     {
         public:
-            virtual ~Awaitable() = default;
+            virtual ~Awaitable() noexcept = default;
 
             virtual void Wait() = 0;
     };
@@ -26,9 +25,9 @@ namespace XXX_NAMESPACE
             std::optional<Awaitable*> handle {};
 
         public:
-            Future() = default;
+            Future() noexcept = default;
 
-            Future(std::shared_ptr<T>& value, Awaitable* handle) noexcept
+            Future(std::shared_ptr<T>&& value, Awaitable* handle) noexcept
                 :
                 value(std::move(value)), handle(handle)
             {}

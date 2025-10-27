@@ -56,7 +56,7 @@ int main(int argc, char **argv)
                   << "  --extent=N0xN1     Set lattice dimensions" << std::endl
                   << "  --num_sweeps       Set number of MC sweeps (default: 100000)" << std::endl
                   << "  --rng=<name>       Set RNG type (default: lcg32)" << std::endl
-#if defined __HIPCC__
+#if defined(__HIPCC__)
                   << "  --target=<name>    Set target device (default: cpu)" << std::endl
                   << "      Supported target devices: cpu, amd_gpu" << std::endl
 #endif

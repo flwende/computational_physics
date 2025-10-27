@@ -35,7 +35,7 @@ namespace XXX_NAMESPACE
             const auto n_offset = std::array<uint32_t, 2>{i, j};
             const auto n_sub = std::array<uint32_t, 2>{std::min(tile_size[0], extent_0 - i), std::min(tile_size[1], extent_1 - j)};
 
-#if defined(__USE_SIMD_INTRINSICS__)
+#if defined(USE_SIMD_INTRINSICS)
             if (n_sub[0] == WavefrontSize)
             {
                 // We can call a version of that method with the extent in 0-direction being

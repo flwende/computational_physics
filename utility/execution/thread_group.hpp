@@ -10,7 +10,7 @@
 #include <thread>
 #include <vector>
 
-#if defined (_WIN32)
+#if defined(_WIN32)
 #define NOMINMAX   /* Do not define min and max in windows.h */
 #include <windows.h>
 #else
@@ -235,7 +235,7 @@ namespace XXX_NAMESPACE
 
             void PinToCpuCore(const std::uint32_t cpu_core)
             {
-#if defined (_WIN32)
+#if defined(_WIN32)
                 const auto my_set = static_cast<DWORD_PTR>(1ULL << cpu_core);
                 SetThreadAffinityMask(GetCurrentThread(), my_set);
 #else

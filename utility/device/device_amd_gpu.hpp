@@ -11,7 +11,7 @@
 
 namespace XXX_NAMESPACE
 {
-#if defined __HIPCC__
+#if defined(__HIPCC__)
     class AMD_GPU final : public AbstractDevice
     {
         public:

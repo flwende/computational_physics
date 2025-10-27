@@ -1,4 +1,4 @@
-#if defined __HIPCC__
+#if defined(__HIPCC__)
 
 __device__
 auto Get(const std::int32_t index) const

@@ -1,4 +1,4 @@
-#if defined __HIPCC__
+#if defined(__HIPCC__)
 
 #include <chrono>
 #include <cstdint>
@@ -55,7 +55,7 @@ void Kernel(RngState* rng_state, float* output, const std::uint32_t iterations)
             state->Update_1d();
             random_numbers[threadIdx.x] = 2.3283064370807974E-10F * state->Get(threadIdx.x);
         }
-        #if defined RANDOM_SHUFFLE_STATE
+        #if defined(RANDOM_SHUFFLE_STATE)
         state->Shuffle_1d();
         #endif
     }

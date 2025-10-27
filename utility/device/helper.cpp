@@ -11,7 +11,7 @@ namespace XXX_NAMESPACE
     {
         if (device_name == "cpu")
             return std::make_unique<CPU>();
-#if defined __HIPCC__
+#if defined(__HIPCC__)
         else if (device_name == "amd_gpu")
             return std::make_unique<AMD_GPU>();
 #endif

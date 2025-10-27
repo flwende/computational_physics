@@ -49,7 +49,7 @@ namespace XXX_NAMESPACE
             state[i] = a[i] * state[i - 1] + c[i];
     }
 
-#if !defined(__USE_SIMD_INTRINSICS__)
+#if !defined(USE_SIMD_INTRINSICS)
     template <std::uint32_t WaveFrontSize>
     void LCG32_State<WaveFrontSize>::Update() noexcept
     {
@@ -132,7 +132,7 @@ namespace XXX_NAMESPACE
     }
 
     template class LCG32_State<CPU::WavefrontSize<std::uint32_t>()>;
-#if defined __HIPCC__
+#if defined(__HIPCC__)
     template class LCG32_State<AMD_GPU::WavefrontSize()>;
 #endif
 }

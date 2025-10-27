@@ -10,7 +10,7 @@ void foo(ThreadContext& context, int a)
     const auto num_threads = context.NumThreads();
     const auto thread_id = context.ThreadId();
 
-    for (std::int32_t i = 0; i < num_threads; ++i)
+    for (std::uint32_t i = 0; i < num_threads; ++i)
     {
         context.Synchronize();
         if (i == thread_id)
@@ -23,7 +23,7 @@ void bar(ThreadContext& context, int a, float b)
     const auto num_threads = context.NumThreads();
     const auto thread_id = context.ThreadId();
 
-    for (std::int32_t i = 0; i < num_threads; ++i)
+    for (std::uint32_t i = 0; i < num_threads; ++i)
     {
         context.Synchronize();
         if (i == thread_id)
@@ -32,7 +32,7 @@ void bar(ThreadContext& context, int a, float b)
 
     context.Synchronize();
 
-    for (std::int32_t i = 0; i < num_threads; ++i)
+    for (std::uint32_t i = 0; i < num_threads; ++i)
     {
         context.Synchronize();
         if (i == thread_id)
@@ -41,7 +41,7 @@ void bar(ThreadContext& context, int a, float b)
 
     context.Synchronize();
 
-    for (std::int32_t i = 0; i < num_threads; ++i)
+    for (std::uint32_t i = 0; i < num_threads; ++i)
     {
         context.Synchronize();
         if (i == thread_id)

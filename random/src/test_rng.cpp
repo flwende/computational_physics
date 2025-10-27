@@ -35,7 +35,7 @@ int main(int argc, char** argv)
                   << "Options:" << std::endl
                   << "  --help, -h      Show this help message" << std::endl
                   << "  --rng=<name>    Set RNG type (default: lcg32)" << std::endl
-#if defined __HIPCC__
+#if defined(__HIPCC__)
                   << "  --target=<name> Set target device (default: cpu)" << std::endl
                   << "      Supported target devices: cpu, amd_gpu" << std::endl
 #endif
@@ -69,7 +69,7 @@ int main(int argc, char** argv)
                 {
                     return Benchmark<LCG32, DeviceName::CPU>(reporting_id, {WarmupIterations, BenchmarkIterations});
                 }
-#if defined __HIPCC__
+#if defined(__HIPCC__)
                 else if (target_name == "amd_gpu")
                 {
                     return Benchmark<LCG32, DeviceName::AMD_GPU>(reporting_id, {WarmupIterations, BenchmarkIterations});

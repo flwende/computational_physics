@@ -74,7 +74,7 @@ namespace XXX_NAMESPACE
                 std::cout << "CPU: setting managed stack memory to " << needed_bytes << " bytes" << std::endl;
                 target.SetManagedStackMemorySize(needed_bytes);
             }
-#if defined __HIPCC__
+#if defined(__HIPCC__)
             else if constexpr (Target == DeviceName::AMD_GPU)
             {
                 InitializeGpuRngState();
@@ -110,7 +110,7 @@ namespace XXX_NAMESPACE
 
     // Explicit template instantiation.
     template class SwendsenWang_2D<LCG32, DeviceName::CPU>;
-#if defined __HIPCC__
+#if defined(__HIPCC__)
     template class SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>;
 #endif
 }

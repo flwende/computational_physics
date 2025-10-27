@@ -28,7 +28,7 @@ namespace XXX_NAMESPACE
             const std::array<std::uint32_t, Dimension> extent {};
             const std::size_t num_sites {};
             MultiDimensionalArray<Spin, Dimension> spins {};
-#if defined __HIPCC__
+#if defined(__HIPCC__)
             GpuPointer<Spin> gpu_spins {};
 #endif
 
@@ -75,7 +75,7 @@ namespace XXX_NAMESPACE
                 return GetEnergyAndMagnetization(GetDevice<Target>(), async);
             }
 
-#if defined __HIPCC__
+#if defined(__HIPCC__)
             auto RawGpuPointer() noexcept { return gpu_spins.get(); }
             auto RawGpuPointer() const noexcept { return gpu_spins.get(); }
 #endif
@@ -90,7 +90,7 @@ namespace XXX_NAMESPACE
                 return target;
             }
 
-#if defined __HIPCC__
+#if defined(__HIPCC__)
             void InitializeGpuSpins(AMD_GPU& gpu);
 #endif
     };

@@ -11,7 +11,7 @@
 
 namespace XXX_NAMESPACE
 {
-#if defined(__USE_SIMD_INTRINSICS__)
+#if defined(USE_SIMD_INTRINSICS)
     template <std::uint32_t WaveFrontSize>
     void LCG32_State<WaveFrontSize>::Update() noexcept
     {
