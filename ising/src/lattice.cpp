@@ -1,5 +1,6 @@
 #include <atomic>
 #include <cstdlib>
+#include <memory>
 #include <numeric>
 
 #include "environment/environment.hpp"
@@ -28,15 +29,11 @@ namespace XXX_NAMESPACE
 
     template <>
     template <>
-    std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<CPU>(CPU& cpu)
+    Future<std::pair<double, double>> Lattice<2>::GetEnergyAndMagnetization<CPU>(CPU& cpu, const bool async)
     {
-        const auto n_0 = extent[0];
-        const auto n_1 = extent[1];
+        auto energy_magnetization = std::make_shared<std::pair<double, double>>(0, 0);
 
-        auto energy = std::atomic<std::int64_t>{0};
-        auto magnetization = std::atomic<std::int64_t>{0};
-
-        auto kernel = [&, this] (ThreadContext& context)
+        auto kernel = [this, energy_magnetization, n_0 = extent[0], n_1 = extent[1]] (ThreadContext& context)
             {
                 const auto thread_id = context.ThreadId();
                 const auto num_threads = context.NumThreads();
@@ -57,25 +54,28 @@ namespace XXX_NAMESPACE
                     }
                 }
 
-                energy += e;
-                magnetization += m;
+                auto energy = std::atomic_ref<double>(energy_magnetization->first);
+                auto magnetization = std::atomic_ref<double>(energy_magnetization->second);
+
+                energy += (-1.0 * e / num_sites);
+                magnetization += (1.0 * m / num_sites);
             };
 
-        cpu.Execute(kernel);
+        auto awaitable = (async ? cpu.AsyncExecute(kernel) : cpu.Execute(kernel));
 
-        return {-1.0 * energy / num_sites, 1.0 * magnetization / num_sites};
+        return {energy_magnetization, awaitable};
     }
 
 #if defined __HIPCC__
     template <>
     template <>
-    std::pair<double, double> Lattice<2>::GetEnergyAndMagnetization<AMD_GPU>(AMD_GPU& gpu)
+    Future<std::pair<double, double>> Lattice<2>::GetEnergyAndMagnetization<AMD_GPU>(AMD_GPU& gpu, const bool async)
     {
         SafeCall(hipSetDevice(gpu.DeviceId()));
 
         SafeCall(hipMemcpy(RawPointer(), RawGpuPointer(), NumSites() * sizeof(Spin), hipMemcpyDeviceToHost));
 
-        return GetEnergyAndMagnetization<CPU>(gpu.Host());
+        return GetEnergyAndMagnetization<CPU>(gpu.Host(), async);
     }
 
     template <>

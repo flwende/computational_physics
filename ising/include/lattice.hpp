@@ -7,6 +7,7 @@
 
 #include "array/multi_dimensional_array.hpp"
 #include "device/device.hpp"
+#include "future/future.hpp"
 
 #if !defined(XXX_NAMESPACE)
 #define XXX_NAMESPACE cp
@@ -66,12 +67,12 @@ namespace XXX_NAMESPACE
 
             template <typename Target>
             requires std::derived_from<Target, AbstractDevice>
-            std::pair<double, double> GetEnergyAndMagnetization(Target& target);
+            Future<std::pair<double, double>> GetEnergyAndMagnetization(Target& target, const bool async = false);
 
             template <DeviceName Target = DeviceName::CPU>
-            auto GetEnergyAndMagnetization()
+            auto GetEnergyAndMagnetization(const bool async = false)
             {
-                return GetEnergyAndMagnetization(GetDevice<Target>());
+                return GetEnergyAndMagnetization(GetDevice<Target>(), async);
             }
 
 #if defined __HIPCC__

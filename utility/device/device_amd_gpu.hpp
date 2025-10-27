@@ -56,7 +56,6 @@ namespace XXX_NAMESPACE
                     std::cerr << "HIP Error: " << error_message << std::endl;
                     throw std::runtime_error(std::string("HIP error: ") + error_message);
                 }
-                //Synchronize();
             }
 
             template <typename Func, typename ...Args>
@@ -64,7 +63,6 @@ namespace XXX_NAMESPACE
             {
                 SafeCall(hipSetDevice(DeviceId()));
                 func(context, std::forward<Args>(args)...);
-                //Synchronize();
             }
 
             void Synchronize()

@@ -14,6 +14,7 @@ Absolute magnetization per site: -0.324382
 #include <cstdlib>
 #include <cstdint>
 #include <stdexcept>
+#include <type_traits>
 
 #include "swendsen_wang.hpp"
 
@@ -100,6 +101,14 @@ int main(int argc, char **argv)
     auto target = GetDevice(target_name);
     std::cout << "Target name: " << (target->Name() == DeviceName::CPU ? "CPU" : "AMD GPU") << std::endl;
 
+    // Async kernel execution is only supported for GPU.
+#if defined(ASYNC_CPU_KERNELS)
+    const auto async_cpu_kernels = (target->Name() != DeviceName::CPU);
+#else
+    const auto async_cpu_kernels = false;
+#endif
+    std::cout << "Async kernel execution: " << (async_cpu_kernels ? "On" : "Off") << std::endl;
+
     // Update kernel: resolve parameters and set up call.
     auto kernel = [&] <typename DeviceType> (DeviceType& target, const std::uint32_t iterations)
         {
@@ -123,28 +132,37 @@ int main(int argc, char **argv)
     // Thermalization.
     DispatchCall(target_name, *target, kernel, N_Warmup);
 
-    // Measurement.
+    // Measurement (observables).
     auto energy = double{0.0};
-    auto energy_squared = double {0.0};
+    auto energy_squared = double{0.0};
     auto magnetization = double{0.0};
+
     const auto starttime = std::chrono::high_resolution_clock::now();
     {
         for (std::uint32_t i = 0; i < n_sweeps; i += N_Sep)
         {
-            // Take measurements every n_sep update steps.
-            DispatchCall(target_name, *target, kernel, N_Sep);
-            
-            auto [e, m] = DispatchCall(target_name, *target, [&lattice] (auto& target)
+            // Take measurements every n_sep update steps (might be asynchronous).
+            const auto result_handle = DispatchCall(target_name, *target, [&lattice, async_cpu_kernels] (auto& target)
                 {
-                    return lattice.GetEnergyAndMagnetization(target);
+                    return lattice.GetEnergyAndMagnetization(target, async_cpu_kernels);
                 });
 
-            // These values are 'per-site' measurements.
-            energy += e;
-            energy_squared += e * e;
-            magnetization += std::abs(m);
+            // Update the spin lattice.
+            DispatchCall(target_name, *target, kernel, N_Sep);
+
+            // Update obervables: values are 'per-site' measurements.
+            if (auto result = result_handle.Get())
+            {
+                auto [e, m] = result.value();
+                {
+                    energy += e;
+                    energy_squared += e * e;
+                    magnetization += std::abs(m);
+                }
+            }
         }
     }
+
     const auto endtime = std::chrono::high_resolution_clock::now();
     const auto elapsed_time_s = std::chrono::duration_cast<std::chrono::microseconds>(endtime - starttime).count() * 1.0E-6;
 

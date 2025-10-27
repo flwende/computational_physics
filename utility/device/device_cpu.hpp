@@ -37,9 +37,15 @@ namespace XXX_NAMESPACE
             static constexpr auto WavefrontSize() noexcept { return simd::Type<T>::Width; }
 
             template <typename Func, typename ...Args>
-            void Execute(Func&& func, Args&&... args)
+            auto Execute(Func&& func, Args&&... args)
             {
-                thread_group.Execute(std::forward<Func>(func), std::forward<Args>(args)...);
+                return thread_group.Execute(std::forward<Func>(func), std::forward<Args>(args)...);
+            }
+
+            template <typename Func, typename ...Args>
+            auto AsyncExecute(Func&& func, Args&&... args)
+            {
+                return thread_group.AsyncExecute(std::forward<Func>(func), std::forward<Args>(args)...);
             }
 
             void SetManagedStackMemorySize(const std::uint32_t bytes)
@@ -49,7 +55,7 @@ namespace XXX_NAMESPACE
 
             void Synchronize()
             {
-                thread_group.Synchronize();
+                thread_group.Wait();
             }
     };
 
