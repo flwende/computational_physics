@@ -51,7 +51,7 @@ void bar(ThreadContext& context, int a, float b)
 
 int main()
 {
-    auto tg = ThreadGroup{2};
+    auto tg = SingleTaskThreadGroup{2};
 
     tg.Execute(foo, 42);
     tg.Execute(bar, 23, 4.3f);

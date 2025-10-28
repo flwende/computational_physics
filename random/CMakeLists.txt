@@ -1,4 +1,6 @@
-file(GLOB_RECURSE sources CONFIGURE_DEPENDS "src/*.cpp" "${CMAKE_SOURCE_DIR}/utility/hip/*.cpp")
+file(GLOB_RECURSE sources CONFIGURE_DEPENDS "src/*.cpp" "${CMAKE_SOURCE_DIR}/utility/*.cpp")
+list(REMOVE_ITEM sources "${CMAKE_SOURCE_DIR}/utility/execution/test_thread_group.cpp")
+list(REMOVE_ITEM sources "${CMAKE_SOURCE_DIR}/utility/synchronization/test_barrier.cpp")
 
 add_executable(TestRNG ${sources})
 

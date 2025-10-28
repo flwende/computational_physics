@@ -17,7 +17,7 @@ namespace XXX_NAMESPACE
     {
         private:
             const std::uint32_t concurrency {};
-            ThreadGroup thread_group;
+            SingleTaskThreadGroup thread_group;
 
         public:
             CPU() : CPU(GetEnv("NUM_THREADS", std::thread::hardware_concurrency()), 0 /* device_id */) {}

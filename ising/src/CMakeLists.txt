@@ -1,7 +1,7 @@
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "*.cpp" "${CMAKE_SOURCE_DIR}/random/src/*.cpp" "${CMAKE_SOURCE_DIR}/utility/*.cpp")
 list(REMOVE_ITEM sources "${CMAKE_SOURCE_DIR}/random/src/test_rng.cpp")
-list(REMOVE_ITEM sources "${CMAKE_SOURCE_DIR}/utility/synchronization/test_barrier.cpp")
 list(REMOVE_ITEM sources "${CMAKE_SOURCE_DIR}/utility/execution/test_thread_group.cpp")
+list(REMOVE_ITEM sources "${CMAKE_SOURCE_DIR}/utility/synchronization/test_barrier.cpp")
 
 add_executable(Ising2D ${sources})
 

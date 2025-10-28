@@ -22,7 +22,7 @@ namespace XXX_NAMESPACE
     {
         private:
             std::shared_ptr<T> value {};
-            std::optional<Awaitable*> handle {};
+            Awaitable* handle {};
 
         public:
             Future() noexcept = default;
@@ -32,15 +32,13 @@ namespace XXX_NAMESPACE
                 value(std::move(value)), handle(handle)
             {}
 
-            auto Valid() const noexcept { return static_cast<bool>(handle) && static_cast<bool>(value); }
-
             std::optional<T> Get() const
             {
-                if (Valid())
-                {
-                    handle.value()->Wait();
+                if (handle)
+                    handle->Wait();
+
+                if (value)
                     return *value;
-                }
                 
                 return {};
             }
