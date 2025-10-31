@@ -3,3 +3,4 @@
 #include "and.hpp"
 #include "or.hpp"
 #include "shift_right.hpp"
+#include "xor.hpp"

@@ -100,49 +100,87 @@ namespace XXX_NAMESPACE
         }
 
         // Step 4.
+        auto vec_l_1 = VecLoad<std::uint32_t>(&l[0][0]);
+        auto vec_a_1 = VecLoad<std::uint32_t>(&c[0][0]);
+
+        auto loop_body = [&] <bool BreakLoop> (const std::uint32_t jj) -> bool
+            {
+                auto vec_l_0 = vec_l_1;
+                vec_l_1 = VecLoad<std::uint32_t>(&l[jj + 1][0]);
+
+                const auto mask_0_0 = VecCompareEQ<std::uint32_t>(VecAnd<std::uint32_t>(vec_l_0, VecSet1<std::uint32_t>(0x2)), VecSet1<std::uint32_t>(0x2));
+                const auto mask_0_1 = VecCompareEQ<std::uint32_t>(VecAnd<std::uint32_t>(vec_l_1, VecSet1<std::uint32_t>(0x2)), VecSet1<std::uint32_t>(0x2));
+                const auto mask_1_0 = MaskFromInteger<std::uint32_t>(MaskToInteger<std::uint32_t>(mask_0_0) << 1);
+                const auto mask_1_1 = MaskFromInteger<std::uint32_t>(MaskToInteger<std::uint32_t>(mask_0_1) << 1);
+                const auto mask_2_0 = VecCompareEQ<std::uint32_t>(VecAnd<std::uint32_t>(vec_l_0, VecSet1<std::uint32_t>(0x4)), VecSet1<std::uint32_t>(0x4));
+
+                [[ maybe_unused ]] auto vec_a_0 = vec_a_1;
+                vec_a_1 = VecLoad<std::uint32_t>(&c[jj + 1][0]);
+
+                // 0-direction.
+                auto vec_b_0 = VecPermuteIdx<std::uint32_t>(vec_a_0, VecSet(Iota<std::uint32_t, N_0>(1, 15)));
+                auto vec_b_1 = VecPermuteIdx<std::uint32_t>(vec_a_1, VecSet(Iota<std::uint32_t, N_0>(1, 15)));
+
+                auto vec_diff_0 = VecXor<std::uint32_t>(vec_a_0, vec_b_0);
+                auto vec_diff_1 = VecXor<std::uint32_t>(vec_a_1, vec_b_1);
+
+                vec_a_0 = VecMin_Masked<std::uint32_t>(vec_a_0, mask_0_0, vec_a_0, vec_b_0);
+                vec_b_0 = VecPermuteIdx<std::uint32_t>(vec_a_0, VecSet(Iota<std::uint32_t, N_0>(-1))); // The sequence will start with 0, 0, 1, 2,..
+                vec_a_0 = VecMin_Masked<std::uint32_t>(vec_a_0, mask_1_0, vec_a_0, vec_b_0);
+
+                vec_a_1 = VecMin_Masked<std::uint32_t>(vec_a_1, mask_0_1, vec_a_1, vec_b_1);
+                vec_b_1 = VecPermuteIdx<std::uint32_t>(vec_a_1, VecSet(Iota<std::uint32_t, N_0>(-1))); // The sequence will start with 0, 0, 1, 2,..
+                vec_a_1 = VecMin_Masked<std::uint32_t>(vec_a_1, mask_1_1, vec_a_1, vec_b_1);
+
+                // 1-direction.
+                [[ maybe_unused ]] auto vec_diff_2 = VecXor<std::uint32_t>(vec_a_0, vec_a_1);
+
+                const auto vec_min = VecMin<std::uint32_t>(vec_a_0, vec_a_1);
+                vec_a_0 = VecMov_Masked<std::uint32_t>(vec_a_0, mask_2_0, vec_min);
+                vec_a_1 = VecMov_Masked<std::uint32_t>(vec_a_1, mask_2_0, vec_min);
+                VecStore<std::uint32_t>(&c[jj][0], vec_a_0);
+                VecStore<std::uint32_t>(&c[jj + 1][0], vec_a_1);
+
+                if constexpr (BreakLoop)
+                {
+                    const auto vec_mask_0 = VecSet1_Masked<std::uint32_t>(mask_0_0, 0xFFFFFFFF);
+                    const auto vec_mask_1 = VecSet1_Masked<std::uint32_t>(mask_0_1, 0xFFFFFFFF);
+                    const auto vec_mask_2 = VecSet1_Masked<std::uint32_t>(mask_2_0, 0xFFFFFFFF);
+
+                    vec_diff_0 = VecAnd<std::uint32_t>(vec_diff_0, vec_mask_0);
+                    vec_diff_1 = VecAnd<std::uint32_t>(vec_diff_1, vec_mask_1);
+                    vec_diff_2 = VecAnd<std::uint32_t>(vec_diff_2, vec_mask_2);
+                    auto vec_diff = VecOr<std::uint32_t>(vec_diff_0, VecOr<std::uint32_t>(vec_diff_1, vec_diff_2));
+
+                    return MaskToInteger<std::uint32_t>(VecTest<std::uint32_t>(vec_diff, vec_diff)) == 0;
+                }
+                else
+                {
+                    return false;
+                }
+            };
+
         auto break_loop = false;
         while (!break_loop)
         {
             break_loop = true;
-            auto vec_a = VecLoad<std::uint32_t>(&c[0][0]);
-            for (std::uint32_t jj = 0; jj < n_1; ++jj)
-            {
-                const auto vec_l = VecLoad<std::uint32_t>(&l[jj][0]);
-                const auto mask_0 = VecCompareEQ<std::uint32_t>(VecAnd<std::uint32_t>(vec_l, VecSet1<std::uint32_t>(0x2)), VecSet1<std::uint32_t>(0x2));
-                const auto mask_1 = MaskFromInteger<std::uint32_t>(MaskToInteger<std::uint32_t>(mask_0) << 1);
-                const auto mask_2 = VecCompareEQ<std::uint32_t>(VecAnd<std::uint32_t>(vec_l, VecSet1<std::uint32_t>(0x4)), VecSet1<std::uint32_t>(0x4));
 
-                //auto label_changes = true;
-                while (true)
-                {
-                    auto vec_b = VecPermuteIdx<std::uint32_t>(vec_a, VecSet(Iota<std::uint32_t, N_0>(1, 15)));
-                    const auto label_changes = MaskToInteger<std::uint32_t>(VecCompareNE_Masked<std::uint32_t>(mask_0, vec_a, vec_b));
-                    if (!label_changes)
-                        break;
-                    else
-                        break_loop = false;
+            // The following lines correspond to a loop over all rows of the current tile.
+            // We stop executing the loop body with 'BreakLoop' check once we found the
+            // loop needs to continue, that is, 'break_loop == false'.
+            auto row_index = std::uint32_t{0};
+            while (break_loop && row_index < (n_1 - 1))
+                break_loop = loop_body.template operator()<true>(row_index++);
+            while (row_index < (n_1 - 1))
+                loop_body.template operator()<false>(row_index++);
 
-                    vec_a = VecMin_Masked<std::uint32_t>(vec_a, mask_0, vec_a, vec_b);
-                    vec_b = VecPermuteIdx<std::uint32_t>(vec_a, VecSet(Iota<std::uint32_t, N_0>(-1))); // The sequence will start with 0, 0, 1, 2,..
-                    vec_a = VecMin_Masked<std::uint32_t>(vec_a, mask_1, vec_a, vec_b);
-                }
+            // No label changes throughout iterating over all rows of the current tile.
+            if (break_loop)
+                break;
 
-                // No next row in 1-direction.
-                if (jj < (n_1 - 1))
-                {
-                    auto vec_b = VecLoad<std::uint32_t>(&c[jj + 1][0]);
-                    if (MaskToInteger<std::uint32_t>(VecCompareNE_Masked<std::uint32_t>(mask_2, vec_a, vec_b)))
-                        break_loop = false;
-
-                    VecStore<std::uint32_t>(&c[jj][0], VecMin_Masked<std::uint32_t>(vec_a, mask_2, vec_a, vec_b));
-                    vec_a = VecMin_Masked<std::uint32_t>(vec_b, mask_2, vec_a, vec_b);
-                    VecStore<std::uint32_t>(&c[jj + 1][0], vec_a);
-                }
-                else
-                {
-                    VecStore<std::uint32_t>(&c[jj][0], vec_a);
-                }
-            }
+            // Reload the first row of the current tile.
+            vec_l_1 = VecLoad<std::uint32_t>(&l[0][0]);
+            vec_a_1 = VecLoad<std::uint32_t>(&c[0][0]);
         }
 
         // Step 5: translate local to global labels.

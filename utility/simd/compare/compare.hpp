@@ -3,3 +3,4 @@
 #include "compare_eq.hpp"
 #include "compare_lt.hpp"
 #include "compare_ne.hpp"
+#include "test.hpp"

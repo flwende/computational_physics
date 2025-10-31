@@ -39,7 +39,7 @@ namespace XXX_NAMESPACE
             if (n_sub[0] == WavefrontSize)
             {
                 // We can call a version of that method with the extent in 0-direction being
-                // a compile time constant (hopefully allowing the compiler to do better optimizations)
+                // the WavefrontSize: this allows SIMD optimizations.
                 CCL_SelfLabeling<WavefrontSize>(context, lattice, p_add, n_offset, n_sub[1]);
             }
             else
