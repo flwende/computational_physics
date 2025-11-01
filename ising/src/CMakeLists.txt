@@ -15,7 +15,10 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 #target_compile_options(Ising2D PUBLIC -O3 -march=znver4 -mavx2 -mno-avx512f -fopenmp-simd -ftree-vectorize -ffast-math -fopt-info-vec-optimized -save-temps)
 target_compile_options(Ising2D PUBLIC -O3 -march=native -fopenmp-simd -ftree-vectorize -ffast-math -fopt-info-vec-optimized -save-temps)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-target_compile_options(Ising2D PUBLIC /Ox /arch:AVX512 /openmp:experimental /fp:fast)
+target_compile_options(Ising2D PUBLIC
+	$<$<CONFIG:Debug>:/openmp:experimental /fp:precise>
+    $<$<CONFIG:Release>:/Ox /openmp:experimental /fp:fast>
+)
 endif()
 
 target_link_options(Ising2D PUBLIC)

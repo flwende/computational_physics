@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10.0)
 project(ComputationalPhysics)
 
 set (CMAKE_CXX_STANDARD 20)
-set (CMAKE_BUILD_TYPE Release)
+#set (CMAKE_BUILD_TYPE Release)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	add_compile_options(-Wall -Wno-ignored-attributes)
@@ -15,7 +15,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		include_directories ("/usr/include/hip")
 	endif()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	add_compile_options(/W4)
+	add_compile_options(/W4 /Zi /arch:AVX512)
 endif()
 
 if (WIN32)
