@@ -7,6 +7,12 @@ if [[ "$1" == "clean" ]]; then rm -r ./build; exit 0; fi
 export CC=gcc
 export CXX=g++
 
+#export CC=gcc-14
+#export CXX=g++-14
+#export CC=clang
+#export CXX=clang++
+#export PATH=/opt/homebrew/opt/llvm@20/bin:$PATH
+
 if [[ "$CC" == "hipcc" ]]; then
     ## Determine native GPU arch.
     touch empty.cpp

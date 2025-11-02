@@ -1,5 +1,8 @@
 #include <algorithm>
 #include <cmath>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
 
 #include "environment/environment.hpp"
 #include "swendsen_wang.hpp"
@@ -208,5 +211,8 @@ namespace XXX_NAMESPACE
     }
 
     // Explicit template instantiation.
-    template class SwendsenWang_2D<LCG32, DeviceName::CPU>;
+    template void SwendsenWang_2D<LCG32, DeviceName::CPU>::AssignLabels(Context&, Lattice<2>&, const float);
+    template void SwendsenWang_2D<LCG32, DeviceName::CPU>::MergeLabels(Context&, Lattice<2>&, const float);
+    template void SwendsenWang_2D<LCG32, DeviceName::CPU>::ResolveLabels(Context&);
+    template void SwendsenWang_2D<LCG32, DeviceName::CPU>::FlipClusters(Context&, Lattice<2>&);
 }

@@ -17,8 +17,9 @@ namespace XXX_NAMESPACE
         for (std::uint32_t i = 0; i < num_threads; ++i)
             threads.emplace_back([this, thread_id = i] ()
                 {
+#if !defined(__APPLE__)
                     PinThread(thread_id);
-
+#endif
                     all_threads_up.Signal();
 
                     Run(thread_id);

@@ -492,7 +492,12 @@ namespace XXX_NAMESPACE
     }
 
     // Explicit template instantiation.
-    template class SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>;
+    template void SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>::InitializeGpuRngState();
+    template void SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>::InitializeGpuCluster(const LabelType);
+    template void SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>::AssignLabels(Context&, Lattice<2>&, const float);
+    template void SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>::MergeLabels(Context&, Lattice<2>&, const float);
+    template void SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>::ResolveLabels(Context&);
+    template void SwendsenWang_2D<LCG32, DeviceName::AMD_GPU>::FlipClusters(Context&, Lattice<2>&);
 }
 
 #endif

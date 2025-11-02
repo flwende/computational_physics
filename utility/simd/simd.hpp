@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <type_traits>
-#include <immintrin.h>
 
 #if defined(__AVX512F__)
     #define SIMD_WIDTH_NATIVE_64BIT 8
@@ -95,7 +94,19 @@ namespace XXX_NAMESPACE
 
         #undef MACRO
     }
+}
 
+#undef SIMD_WIDTH_NATIVE_64BIT
+#undef SIMD_WIDTH_NATIVE_32BIT
+#undef SIMD_WIDTH_NATIVE_16BIT
+#undef SIMD_WIDTH_NATIVE_8BIT
+#undef SIMD_ALIGNMENT
+
+#if !defined(__APPLE__)
+#include <immintrin.h>
+
+namespace XXX_NAMESPACE
+{
     // SIMD vector concept.
     template <typename T>
     concept SimdVector_128Bit = requires
@@ -140,15 +151,11 @@ namespace XXX_NAMESPACE
     template <typename T>
     concept SimdMask = SimdMask_128Bit<T> || SimdMask_256Bit<T> || SimdMask_512Bit<T>;
 }
-
-#undef SIMD_WIDTH_NATIVE_64BIT
-#undef SIMD_WIDTH_NATIVE_32BIT
-#undef SIMD_WIDTH_NATIVE_16BIT
-#undef SIMD_WIDTH_NATIVE_8BIT
-#undef SIMD_ALIGNMENT
+#endif
 
 #undef XXX_NAMESPACE
 
+#if !defined(__APPLE__)
 #include "arithmetic/arithmetic.hpp"
 #include "bits/bits.hpp"
 #include "compare/compare.hpp"
@@ -157,3 +164,4 @@ namespace XXX_NAMESPACE
 #include "mask/mask.hpp"
 #include "permute/permute.hpp"
 #include "set/set.hpp"
+#endif

@@ -1,3 +1,5 @@
+#if !defined(__APPLE__)
+
 #include <array>
 #include <mutex>
 #include <immintrin.h>
@@ -40,3 +42,5 @@ namespace XXX_NAMESPACE
 
     template class LCG32_State<CPU::WavefrontSize<std::uint32_t>()>;
 }
+
+#endif

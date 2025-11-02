@@ -9,7 +9,7 @@
 #if defined(_WIN32)
 #define NOMINMAX   /* Do not define min and max in windows.h */
 #include <windows.h>
-#else
+#elif defined(__linux__)
 #include <sched.h>
 #include <unistd.h>
 #endif
@@ -67,7 +67,7 @@ namespace XXX_NAMESPACE
             for (std::uint32_t i = 0; i < num_cpus; ++i)
                 mapping.emplace(i, i);
         }
-#else
+#elif defined(__linux__)
         auto cpuinfo = std::ifstream{"/proc/cpuinfo"};
         auto physical = std::int32_t{-1};
         auto logical = std::int32_t{-1};
@@ -97,7 +97,7 @@ namespace XXX_NAMESPACE
 #if defined(_WIN32)
         const auto my_set = static_cast<DWORD_PTR>(1ULL << cpu_core);
         SetThreadAffinityMask(GetCurrentThread(), my_set);
-#else
+#elif defined(__linux__)
         auto my_set = cpu_set_t{};
         CPU_ZERO(&my_set);
         CPU_SET(cpu_core, &my_set);
